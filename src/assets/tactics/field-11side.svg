@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+  <defs>
+    <pattern id="grass-11side" width="40" height="40" patternUnits="userSpaceOnUse">
+      <rect width="40" height="40" fill="#2d5016"/>
+      <rect width="20" height="20" fill="#3a6b1f"/>
+      <rect x="20" y="20" width="20" height="20" fill="#3a6b1f"/>
+    </pattern>
+  </defs>
+
+  <!-- 草地背景 -->
+  <rect width="800" height="500" fill="url(#grass-11side)"/>
+
+  <!-- 球场外边框 -->
+  <rect x="40" y="40" width="720" height="420" fill="none" stroke="#ffffff" stroke-width="3"/>
+
+  <!-- 中线 -->
+  <line x1="400" y1="40" x2="400" y2="460" stroke="#ffffff" stroke-width="2"/>
+
+  <!-- 中圈 (11人制标准) -->
+  <circle cx="400" cy="250" r="60" fill="none" stroke="#ffffff" stroke-width="2"/>
+
+  <!-- 中点 -->
+  <circle cx="400" cy="250" r="3" fill="#ffffff"/>
+
+  <!-- 左侧球门区 (小禁区) -->
+  <rect x="40" y="130" width="60" height="240" fill="none" stroke="#ffffff" stroke-width="2"/>
+
+  <!-- 左侧罚球区 (大禁区) -->
+  <rect x="40" y="80" width="130" height="340" fill="none" stroke="#ffffff" stroke-width="2"/>
+
+  <!-- 左侧罚球点 -->
+  <circle cx="120" cy="250" r="3" fill="#ffffff"/>
+
+  <!-- 左侧罚球弧 -->
+  <path d="M 170 185 A 65 65 0 0 1 170 315" fill="none" stroke="#ffffff" stroke-width="2"/>
+
+  <!-- 右侧球门区 -->
+  <rect x="700" y="130" width="60" height="240" fill="none" stroke="#ffffff" stroke-width="2"/>
+
+  <!-- 右侧罚球区 -->
+  <rect x="630" y="80" width="130" height="340" fill="none" stroke="#ffffff" stroke-width="2"/>
+
+  <!-- 右侧罚球点 -->
+  <circle cx="680" cy="250" r="3" fill="#ffffff"/>
+
+  <!-- 右侧罚球弧 -->
+  <path d="M 630 185 A 65 65 0 0 0 630 315" fill="none" stroke="#ffffff" stroke-width="2"/>
+
+  <!-- 球门标识 -->
+  <rect x="20" y="180" width="20" height="140" fill="none" stroke="#ffffff" stroke-width="2"/>
+  <rect x="760" y="180" width="20" height="140" fill="none" stroke="#ffffff" stroke-width="2"/>
+
+  <!-- 角球弧 -->
+  <path d="M 40 45 Q 60 45 60 55" fill="none" stroke="#ffffff" stroke-width="1"/>
+  <path d="M 760 45 Q 740 45 740 55" fill="none" stroke="#ffffff" stroke-width="1"/>
+  <path d="M 40 455 Q 60 455 60 445" fill="none" stroke="#ffffff" stroke-width="1"/>
+  <path d="M 760 455 Q 740 455 740 445" fill="none" stroke="#ffffff" stroke-width="1"/>
+
+  <!-- 11人制额外标识线 -->
+  <line x1="170" y1="150" x2="170" y2="350" stroke="#ffffff" stroke-width="1" stroke-dasharray="5,5"/>
+  <line x1="630" y1="150" x2="630" y2="350" stroke="#ffffff" stroke-width="1" stroke-dasharray="5,5"/>
+</svg>

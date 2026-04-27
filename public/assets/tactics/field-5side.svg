@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" fill="none">
+  <!-- 草地背景 -->
+  <rect width="600" height="400" fill="#2d5016"/>
+  <rect width="600" height="400" fill="url(#grassPattern)"/>
+  
+  <defs>
+    <pattern id="grassPattern" patternUnits="userSpaceOnUse" width="40" height="40">
+      <rect width="40" height="40" fill="#2d5016"/>
+      <rect width="20" height="40" fill="#3a6b1f"/>
+    </pattern>
+  </defs>
+
+  <!-- 球场边界 -->
+  <rect x="10" y="10" width="580" height="380" stroke="white" stroke-width="2" rx="2" fill="none"/>
+  
+  <!-- 中线 -->
+  <line x1="300" y1="10" x2="300" y2="390" stroke="white" stroke-width="2"/>
+  
+  <!-- 中圆 -->
+  <circle cx="300" cy="200" r="60" stroke="white" stroke-width="2" fill="none"/>
+  <circle cx="300" cy="200" r="4" fill="white"/>
+
+  <!-- 左侧禁区（5人制小禁区） -->
+  <rect x="10" y="130" width="80" height="140" stroke="white" stroke-width="2" fill="rgba(255,255,255,0.05)"/>
+  <rect x="10" y="165" width="30" height="70" stroke="white" stroke-width="2" fill="rgba(255,255,255,0.03)"/>
+  <circle cx="80" cy="200" r="4" fill="white"/>
+
+  <!-- 右侧禁区 -->
+  <rect x="510" y="130" width="80" height="140" stroke="white" stroke-width="2" fill="rgba(255,255,255,0.05)"/>
+  <rect x="560" y="165" width="30" height="70" stroke="white" stroke-width="2" fill="rgba(255,255,255,0.03)"/>
+  <circle cx="520" cy="200" r="4" fill="white"/>
+
+  <!-- 左球门 -->
+  <rect x="2" y="175" width="8" height="50" stroke="white" stroke-width="2" fill="none"/>
+  
+  <!-- 右球门 -->
+  <rect x="590" y="175" width="8" height="50" stroke="white" stroke-width="2" fill="none"/>
+</svg>
