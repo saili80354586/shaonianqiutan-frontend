@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { User, AnalystApplication } from '../types';
-import { adminApi, analystApplicationApi } from '../services/api';
+import { adminApi, analystApplicationApi, unwrapApiResponse } from '../services/api';
 import { Loading } from '../components';
 import { Search, Filter, Eye, CheckCircle, XCircle, Ban, Trash2, ChevronLeft, ChevronRight, Star, Briefcase } from 'lucide-react';
 
@@ -30,8 +30,9 @@ const AnalystManagement: React.FC = () => {
     setLoading(true);
     try {
       const response = await adminApi.listAnalysts(currentPage, pageSize, statusFilter === 'all' ? '' : statusFilter);
-      if (response.success && response.data) {
-        let filteredAnalysts = response.data.list;
+      const body = unwrapApiResponse(response);
+      if (body.success && body.data) {
+        let filteredAnalysts = body.data.list;
         
         if (searchQuery) {
           filteredAnalysts = filteredAnalysts.filter(a => 
@@ -42,7 +43,7 @@ const AnalystManagement: React.FC = () => {
         }
         
         setAnalysts(filteredAnalysts);
-        setTotalAnalysts(response.data.total);
+        setTotalAnalysts(body.data.total);
       }
     } catch (error) {
       console.error('加载分析师列表失败', error);
@@ -55,8 +56,9 @@ const AnalystManagement: React.FC = () => {
     setLoading(true);
     try {
       const response = await analystApplicationApi.listApplications(currentPage, pageSize, 'pending');
-      if (response.success && response.data) {
-        setApplications(response.data.list);
+      const body = unwrapApiResponse(response);
+      if (body.success && body.data) {
+        setApplications(body.data.list);
       }
     } catch (error) {
       console.error('加载申请列表失败', error);

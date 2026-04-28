@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { analystApi } from '../../services/api';
-import type { Order } from '../../types';
+import type { Order, OrderType } from '../../types';
 import { 
   Clock, 
   User, 
@@ -40,11 +40,11 @@ const ActiveOrders: React.FC<ActiveOrdersProps> = ({ onStartAnalysis }) => {
   };
 
   const getOrderTypeBadge = (type: OrderType) => {
-    if (type === 'video') {
+    if (type === 'pro' || type === 'video') {
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
           <Video className="w-3 h-3 mr-1" />
-          视频版
+          视频解析版
         </span>
       );
     }
@@ -179,7 +179,7 @@ const ActiveOrders: React.FC<ActiveOrdersProps> = ({ onStartAnalysis }) => {
                       className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
                     >
                       <PlayCircle className="w-4 h-4" />
-                      {order.order_type === 'video' ? '开始分析并剪辑' : order.order_type === 'pro' ? '开始分析与剪辑' : '开始评分'}
+                      {order.order_type === 'pro' || order.order_type === 'video' ? '开始分析与剪辑' : '开始评分'}
                     </button>
                   </div>
                 </div>

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { adminApi } from '../../services/api';
 import type { User } from '../../types';
 import { Loading } from '../../components';
-import { Users as UsersIcon, User, Phone, CheckCircle, Edit3, Ban } from 'lucide-react';
+import { Users as UsersIcon, User as UserIcon, Phone, CheckCircle, Edit3, Ban } from 'lucide-react';
 
 const Users: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -64,6 +65,18 @@ const Users: React.FC = () => {
     }
   };
 
+  const handleToggleStatus = async (user: User) => {
+    const nextStatus = user.status === 'active' ? 'inactive' : 'active';
+    try {
+      await adminApi.updateUserStatus(user.id, nextStatus);
+      setUsers(users.map(item => item.id === user.id ? { ...item, status: nextStatus } : item));
+      toast.success(nextStatus === 'active' ? '用户已启用' : '用户已禁用');
+    } catch (error) {
+      console.error('更新用户状态失败', error);
+      toast.error('更新用户状态失败');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
@@ -104,7 +117,7 @@ const Users: React.FC = () => {
                     <td className="py-4 px-6 font-mono text-sm text-slate-400">{user.id}</td>
                     <td className="py-4 px-6 text-white">
                       <div className="flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-slate-500" />
+                        <UserIcon className="w-3.5 h-3.5 text-slate-500" />
                         {user.nickname || '-'}
                       </div>
                     </td>
@@ -130,13 +143,13 @@ const Users: React.FC = () => {
                     <td className="py-4 px-6">
                       <div className="flex gap-2">
                         <button
-                          onClick={() => alert(`编辑用户 ${user.id}（功能开发中）`)}
+                          onClick={() => toast.info(`用户 ${user.id} 编辑功能待接入`)}
                           className="flex items-center gap-1 px-3 py-1.5 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors text-sm"
                         >
                           <Edit3 className="w-3.5 h-3.5" /> 编辑
                         </button>
                         <button
-                          onClick={() => alert(`${user.status === 'active' ? '禁用' : '启用'}用户 ${user.id}（功能开发中）`)}
+                          onClick={() => handleToggleStatus(user)}
                           className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors text-sm ${
                             user.status === 'active'
                               ? 'text-red-400 hover:bg-red-500/10'

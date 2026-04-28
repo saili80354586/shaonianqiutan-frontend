@@ -1,5 +1,6 @@
 import { Suspense, lazy } from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import Navbar from './components/Navbar';
 import { Loading } from './components/ui/loading';
 import AnalystGuard from './components/guards/AnalystGuard';
@@ -7,6 +8,7 @@ import ClubGuard from './components/guards/ClubGuard';
 import CoachGuard from './components/guards/CoachGuard';
 import ScoutGuard from './components/guards/ScoutGuard';
 import AdminGuard from './components/guards/AdminGuard';
+import AuthGuard from './components/guards/AuthGuard';
 
 // 核心页面 - 立即加载
 import Home from './pages/Home';
@@ -22,7 +24,6 @@ const RegisterPending = lazy(() => import('./pages/auth/RegisterPending'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const VideoAnalysisLanding = lazy(() => import('./pages/VideoAnalysisLanding'));
 const VideoAnalysisOrder = lazy(() => import('./pages/VideoAnalysisNew'));
-const EditReport = lazy(() => import('./pages/EditReport'));
 const AnalystSelect = lazy(() => import('./pages/AnalystSelect'));
 const PackageSelect = lazy(() => import('./pages/PackageSelect'));
 const OrderConfirm = lazy(() => import('./pages/OrderConfirm'));
@@ -30,6 +31,8 @@ const OrderPayment = lazy(() => import('./pages/OrderPayment'));
 const OrderSuccess = lazy(() => import('./pages/OrderSuccess'));
 const PostPaymentUpload = lazy(() => import('./pages/PostPaymentUpload'));
 const OrderDetail = lazy(() => import('./pages/OrderDetail'));
+const ReportList = lazy(() => import('./pages/ReportList'));
+const ReportView = lazy(() => import('./pages/ReportView'));
 const UserDashboard = lazy(() => import('./pages/UserDashboard'));
 const AnalystDashboard = lazy(() => import('./pages/AnalystDashboard/index'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
@@ -138,6 +141,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-primary">
+      <Toaster richColors position="top-right" />
       {shouldShowNavbar && <Navbar />}
       <Suspense fallback={<PageLoader />}>
         <Routes>
@@ -150,8 +154,8 @@ function App() {
           <Route path="/video-analysis" element={<VideoAnalysisLanding />} />
           <Route path="/video-analysis/order" element={<VideoAnalysisOrder />} />
           {/* 分析师工作流统一在 /analyst/dashboard 内通过 VideoAnalysisWorkspace 完成 */}
-<Route path="/analyst/reports/new" element={<EditReport />} />
-<Route path="/analyst/reports/:id/edit" element={<EditReport />} />
+          <Route path="/analyst/reports/new" element={<AnalystGuard><Navigate to="/analyst/dashboard" replace /></AnalystGuard>} />
+          <Route path="/analyst/reports/:id/edit" element={<AnalystGuard><Navigate to="/analyst/dashboard" replace /></AnalystGuard>} />
           <Route path="/analyst-select" element={<AnalystSelect />} />
           <Route path="/package-select" element={<PackageSelect />} />
           <Route path="/order-confirm" element={<OrderConfirm />} />
@@ -160,7 +164,9 @@ function App() {
           <Route path="/order-success" element={<OrderSuccess />} />
           <Route path="/order/:orderId/upload" element={<PostPaymentUpload />} />
           <Route path="/order/:id" element={<OrderDetail />} />
-          <Route path="/user-dashboard/*" element={<UserDashboard />} />
+          <Route path="/reports" element={<AuthGuard><ReportList /></AuthGuard>} />
+          <Route path="/reports/:id" element={<AuthGuard><ReportView /></AuthGuard>} />
+          <Route path="/user-dashboard/*" element={<AuthGuard><UserDashboard /></AuthGuard>} />
           <Route path="/analyst/:id" element={<AnalystHomePage />} />
           <Route path="/analyst/dashboard" element={<AnalystGuard><AnalystDashboard /></AnalystGuard>} />
           <Route path="/analyst/profile/edit" element={<AnalystGuard><Navigate to="/settings" /></AnalystGuard>} />
@@ -195,7 +201,7 @@ function App() {
           <Route path="/personal-homepage/:id?" element={<PersonalHomepage />} />
           <Route path="/followers/:userId" element={<FollowListPage />} />
           <Route path="/following/:userId" element={<FollowListPage />} />
-          <Route path="/player/profile" element={<PlayerProfile />} />
+          <Route path="/player/profile" element={<AuthGuard><PlayerProfile /></AuthGuard>} />
           <Route path="/share/player/:id" element={<PlayerSharePage />} />
           <Route path="/club/dashboard" element={<ClubGuard><ClubDashboard /></ClubGuard>} />
           <Route path="/club/physical-tests" element={<ClubGuard><PhysicalTests /></ClubGuard>} />
@@ -215,21 +221,21 @@ function App() {
           <Route path="/scout/dashboard" element={<ScoutGuard><ScoutDashboard /></ScoutGuard>} />
           <Route path="/scout/profile/edit" element={<ScoutGuard><Navigate to="/settings" /></ScoutGuard>} />
           <Route path="/scout/:id" element={<ScoutHomePage />} />
-          <Route path="/edit-profile" element={<EditProfile />} />
-          <Route path="/edit-profile-enhanced" element={<EditProfileEnhanced />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/growth-records" element={<GrowthRecords />} />
+          <Route path="/edit-profile" element={<AuthGuard><EditProfile /></AuthGuard>} />
+          <Route path="/edit-profile-enhanced" element={<AuthGuard><EditProfileEnhanced /></AuthGuard>} />
+          <Route path="/settings" element={<AuthGuard><Settings /></AuthGuard>} />
+          <Route path="/growth-records" element={<AuthGuard><GrowthRecords /></AuthGuard>} />
 
           {/* 球探个人资料 */}
-          <Route path="/scout/profile" element={<ScoutProfile />} />
+          <Route path="/scout/profile" element={<ScoutGuard><ScoutProfile /></ScoutGuard>} />
           {/* 教练个人资料 */}
-          <Route path="/coach/profile" element={<CoachProfile />} />
+          <Route path="/coach/profile" element={<CoachGuard><CoachProfile /></CoachGuard>} />
           {/* 分析师个人资料 */}
-          <Route path="/analyst/profile" element={<AnalystProfile />} />
+          <Route path="/analyst/profile" element={<AnalystGuard><AnalystProfile /></AnalystGuard>} />
           {/* 俱乐部个人资料 */}
-          <Route path="/club/profile" element={<ClubProfile />} />
-          <Route path="/notifications" element={<Notifications />} />
-          <Route path="/messages" element={<Messages />} />
+          <Route path="/club/profile" element={<ClubGuard><ClubProfile /></ClubGuard>} />
+          <Route path="/notifications" element={<AuthGuard><Notifications /></AuthGuard>} />
+          <Route path="/messages" element={<AuthGuard><Messages /></AuthGuard>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>

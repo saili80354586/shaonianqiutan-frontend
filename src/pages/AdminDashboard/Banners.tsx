@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { adminApi } from '../../services/api';
 import { Image, Plus, Trash2, Edit2, Loader2, CheckCircle, Eye, EyeOff, GripVertical } from 'lucide-react';
+import AdminConfirmDialog from './components/AdminConfirmDialog';
 
 interface Banner {
   id: number;
@@ -22,6 +24,7 @@ const Banners: React.FC = () => {
   const [editing, setEditing] = useState<Banner | null>(null);
   const [form, setForm] = useState({ title: '', image_url: '', link_url: '', position: 'home', sort_order: 0, enabled: true, start_at: '', end_at: '' });
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Banner | null>(null);
 
   const fetchItems = async () => {
     try {
@@ -69,12 +72,14 @@ const Banners: React.FC = () => {
     finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('确定删除该轮播图？')) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await adminApi.deleteBanner(id);
+      await adminApi.deleteBanner(deleteTarget.id);
+      toast.success('轮播图已删除');
+      setDeleteTarget(null);
       fetchItems();
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); toast.error('删除轮播图失败'); }
   };
 
   const toggleEnable = async (item: Banner) => {
@@ -111,7 +116,7 @@ const Banners: React.FC = () => {
               )}
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                 <button onClick={() => openEdit(item)} className="p-2 bg-white/10 rounded-lg text-white hover:bg-white/20 transition-colors"><Edit2 className="w-4 h-4" /></button>
-                <button onClick={() => handleDelete(item.id)} className="p-2 bg-white/10 rounded-lg text-white hover:bg-red-500/20 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                <button onClick={() => setDeleteTarget(item)} className="p-2 bg-white/10 rounded-lg text-white hover:bg-red-500/20 transition-colors"><Trash2 className="w-4 h-4" /></button>
               </div>
               {!item.enabled && (
                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><span className="text-slate-400 text-sm">已禁用</span></div>
@@ -183,6 +188,15 @@ const Banners: React.FC = () => {
           </div>
         </div>
       )}
+      <AdminConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="删除轮播图"
+        description={`确定删除「${deleteTarget?.title || ''}」吗？删除后前台将不再展示该轮播图。`}
+        confirmText="删除"
+        tone="danger"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

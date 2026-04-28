@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { adminApi } from '../../services/api';
 import { Megaphone, Plus, Trash2, Edit2, Loader2, CheckCircle, XCircle, Pin } from 'lucide-react';
+import AdminConfirmDialog from './components/AdminConfirmDialog';
 
 interface Announcement {
   id: number;
@@ -22,6 +24,7 @@ const PlatformAnnouncements: React.FC = () => {
   const [editing, setEditing] = useState<Announcement | null>(null);
   const [form, setForm] = useState({ title: '', content: '', type: 'system', is_pinned: false, is_public: true, start_at: '', end_at: '' });
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Announcement | null>(null);
 
   const fetchItems = async () => {
     try {
@@ -68,12 +71,14 @@ const PlatformAnnouncements: React.FC = () => {
     finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('确定删除该公告？')) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await adminApi.deletePlatformAnnouncement(id);
+      await adminApi.deletePlatformAnnouncement(deleteTarget.id);
+      toast.success('公告已删除');
+      setDeleteTarget(null);
       fetchItems();
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); toast.error('删除公告失败'); }
   };
 
   const togglePin = async (item: Announcement) => {
@@ -133,7 +138,7 @@ const PlatformAnnouncements: React.FC = () => {
                 </td>
                 <td className="px-4 py-3 text-right flex gap-2 justify-end">
                   <button onClick={() => openEdit(item)} className="text-slate-400 hover:text-emerald-400 transition-colors"><Edit2 className="w-4 h-4" /></button>
-                  <button onClick={() => handleDelete(item.id)} className="text-slate-400 hover:text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => setDeleteTarget(item)} className="text-slate-400 hover:text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
                 </td>
               </tr>
             ))}
@@ -194,6 +199,15 @@ const PlatformAnnouncements: React.FC = () => {
           </div>
         </div>
       )}
+      <AdminConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="删除公告"
+        description={`确定删除「${deleteTarget?.title || ''}」吗？删除后前台公告入口将不再展示。`}
+        confirmText="删除"
+        tone="danger"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

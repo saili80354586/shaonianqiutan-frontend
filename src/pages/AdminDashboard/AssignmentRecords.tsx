@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { adminApi } from '../../services/api';
+import { adminApi, unwrapApiResponse } from '../../services/api';
 import type { OrderAssignment, AssignmentStatus } from '../../types';
+import AdminConfirmDialog from './components/AdminConfirmDialog';
 import { 
   Clock, 
   User, 
@@ -24,6 +25,7 @@ const AssignmentRecords: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [pendingReassign, setPendingReassign] = useState<OrderAssignment | null>(null);
 
   useEffect(() => {
     loadAssignments();
@@ -37,100 +39,36 @@ const AssignmentRecords: React.FC = () => {
         pageSize: 10,
         status: filterStatus === 'all' ? undefined : filterStatus
       });
-      if (response.success && response.data) {
-        setAssignments(response.data.list);
-        setTotal(response.data.total);
+      const payload = unwrapApiResponse(response);
+      if (payload.success && payload.data) {
+        setAssignments(payload.data.list || []);
+        setTotal(payload.data.total || 0);
       }
     } catch (error) {
       console.error('加载派发记录失败', error);
-      // 使用模拟数据
-      setAssignments([
-        {
-          id: 1,
-          order_id: 101,
-          analyst_id: 1,
-          assigned_by: 1,
-          assigned_at: '2026-04-03T11:00:00Z',
-          status: 'accepted',
-          responded_at: '2026-04-03T11:15:00Z',
-          order: {
-            id: 101,
-            order_no: 'ORD20250403001',
-            user_id: 101,
-            amount: 799,
-            status: 'accepted',
-            order_type: 'video',
-            player_name: '陈浩然',
-            player_position: '右边锋',
-            created_at: '2026-04-03T10:30:00Z',
-            updated_at: '2026-04-03T11:15:00Z'
-          },
-          analyst: { id: 1, phone: '138****1111', nickname: '张分析师', role: 'analyst', status: 'active', created_at: '', updated_at: '' }
-        },
-        {
-          id: 2,
-          order_id: 102,
-          analyst_id: 2,
-          assigned_by: 1,
-          assigned_at: '2026-04-03T10:00:00Z',
-          status: 'pending',
-          order: {
-            id: 102,
-            order_no: 'ORD20250403002',
-            user_id: 102,
-            amount: 299,
-            status: 'assigned',
-            order_type: 'text',
-            player_name: '王小明',
-            player_position: '中场',
-            created_at: '2026-04-03T09:15:00Z',
-            updated_at: '2026-04-03T10:00:00Z'
-          },
-          analyst: { id: 2, phone: '139****2222', nickname: '李分析师', role: 'analyst', status: 'active', created_at: '', updated_at: '' }
-        },
-        {
-          id: 3,
-          order_id: 103,
-          analyst_id: 3,
-          assigned_by: 1,
-          assigned_at: '2026-04-02T17:00:00Z',
-          status: 'rejected',
-          rejected_reason: '当前工作量已满，无法接单',
-          responded_at: '2026-04-02T17:30:00Z',
-          order: {
-            id: 103,
-            order_no: 'ORD20250402003',
-            user_id: 103,
-            amount: 799,
-            status: 'paid',
-            order_type: 'video',
-            player_name: '李天翼',
-            player_position: '守门员',
-            created_at: '2026-04-02T16:45:00Z',
-            updated_at: '2026-04-02T17:30:00Z'
-          },
-          analyst: { id: 3, phone: '137****3333', nickname: '王分析师', role: 'analyst', status: 'active', created_at: '', updated_at: '' }
-        }
-      ]);
-      setTotal(3);
+      setAssignments([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleReassign = async (assignment: OrderAssignment) => {
-    if (!window.confirm('确定要重新派发此订单吗？')) return;
-    
-    try {
-      // 先取消当前派发
-      await adminApi.cancelAssignment(assignment.order_id.toString());
-      // 重新加载列表
-      loadAssignments();
-      alert('订单已取消派发，请前往"待派发"页面重新指派分析师');
-    } catch (error) {
-      console.error('重新派发失败', error);
-      alert('操作失败，请重试');
-    }
+  const handleReassign = (assignment: OrderAssignment) => {
+    setPendingReassign(assignment);
+  };
+
+  const confirmReassign = () => {
+    if (!pendingReassign) return;
+    navigate('/admin/orders/dispatch', { state: { orderId: pendingReassign.order_id } });
+  };
+
+  const getAnalystName = (assignment: OrderAssignment) => {
+    const analyst = assignment.analyst;
+    return analyst?.name
+      || analyst?.nickname
+      || analyst?.user?.nickname
+      || analyst?.user?.name
+      || `分析师 #${assignment.analyst_id}`;
   };
 
   const getStatusBadge = (status: AssignmentStatus) => {
@@ -174,7 +112,7 @@ const AssignmentRecords: React.FC = () => {
       return (
         assignment.order?.order_no.toLowerCase().includes(query) ||
         assignment.order?.player_name?.toLowerCase().includes(query) ||
-        assignment.analyst?.nickname?.toLowerCase().includes(query)
+        getAnalystName(assignment).toLowerCase().includes(query)
       );
     }
     return true;
@@ -303,13 +241,11 @@ const AssignmentRecords: React.FC = () => {
                       </span>
                       {getStatusBadge(assignment.status)}
                       <span className={`text-xs px-2 py-0.5 rounded ${
-                        assignment.order?.order_type === 'video' 
-                          ? 'bg-purple-100 text-purple-700' 
-                          : assignment.order?.order_type === 'pro'
-                          ? 'bg-indigo-100 text-indigo-700'
+                        assignment.order?.order_type === 'video' || assignment.order?.order_type === 'pro'
+                          ? 'bg-purple-100 text-purple-700'
                           : 'bg-blue-100 text-blue-700'
                       }`}>
-                        {assignment.order?.order_type === 'video' ? '视频版' : assignment.order?.order_type === 'pro' ? '文字+视频版' : '文字版'}
+                        {assignment.order?.order_type === 'video' || assignment.order?.order_type === 'pro' ? '视频解析版' : '文字版'}
                       </span>
                     </div>
                     
@@ -326,7 +262,7 @@ const AssignmentRecords: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4 text-blue-400" />
                         <span className="text-sm text-gray-700">
-                          分析师: {assignment.analyst?.nickname}
+                          分析师: {getAnalystName(assignment)}
                         </span>
                       </div>
                     </div>
@@ -397,6 +333,14 @@ const AssignmentRecords: React.FC = () => {
           </div>
         )}
       </div>
+      <AdminConfirmDialog
+        open={Boolean(pendingReassign)}
+        title="确认重新派发"
+        description={`订单 ${pendingReassign?.order?.order_no || (pendingReassign ? `#${pendingReassign.order_id}` : '')} 将进入派发中心重新选择分析师，原拒绝记录会保留在派发历史中。`}
+        confirmText="确认重新派发"
+        onConfirm={confirmReassign}
+        onCancel={() => setPendingReassign(null)}
+      />
     </div>
   );
 };

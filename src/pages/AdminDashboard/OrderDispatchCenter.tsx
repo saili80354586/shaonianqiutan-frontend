@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { adminApi } from '../../services/api';
 import type { Order, OrderType, AnalystWorkload } from '../../types';
 import { 
@@ -71,11 +72,11 @@ const OrderDispatchCenter: React.FC = () => {
   });
 
   const getOrderTypeBadge = (type: OrderType) => {
-    if (type === 'video') {
+    if (type === 'pro' || type === 'video') {
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
           <Video className="w-3 h-3 mr-1" />
-          视频版
+          视频解析版
         </span>
       );
     }
@@ -140,9 +141,9 @@ const OrderDispatchCenter: React.FC = () => {
         <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">视频版订单</p>
+              <p className="text-sm text-gray-500">视频解析订单</p>
               <p className="text-2xl font-bold text-purple-600">
-                {orders.filter(o => o.order_type === 'video' || o.order_type === 'pro').length}
+                {orders.filter(o => o.order_type === 'pro' || o.order_type === 'video').length}
               </p>
             </div>
             <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -155,7 +156,7 @@ const OrderDispatchCenter: React.FC = () => {
             <div>
               <p className="text-sm text-gray-500">文字版订单</p>
               <p className="text-2xl font-bold text-blue-600">
-                {orders.filter(o => o.order_type === 'text').length}
+                {orders.filter(o => o.order_type === 'basic' || o.order_type === 'text').length}
               </p>
             </div>
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -190,8 +191,8 @@ const OrderDispatchCenter: React.FC = () => {
               className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">全部类型</option>
-              <option value="video">视频版</option>
-              <option value="text">文字版</option>
+              <option value="pro">视频解析版</option>
+              <option value="basic">专业文字版</option>
             </select>
           </div>
           <div className="flex-1 min-w-[200px]">
@@ -368,14 +369,14 @@ const AnalystSelectorModal: React.FC<AnalystSelectorModalProps> = ({ order, onCl
       });
       
       if (response.data?.success) {
-        alert('订单派发成功！');
+        toast.success('订单派发成功');
         onSuccess();
       } else {
-        alert(response.data?.error?.message || '派发失败');
+        toast.error(response.data?.error?.message || '派发失败');
       }
     } catch (error) {
       console.error('派发订单失败', error);
-      alert('派发失败，请重试');
+      toast.error('派发失败，请重试');
     } finally {
       setDispatching(false);
     }

@@ -121,8 +121,8 @@ const OrderConfirm: React.FC = () => {
         remark: '',
       });
 
-      if (!createRes.data?.success && !createRes.data?.data) {
-        throw new Error(createRes.data?.message || '订单创建失败');
+      if (!createRes.data?.success || !createRes.data?.data) {
+        throw new Error(createRes.data?.error?.message || createRes.data?.message || '订单创建失败');
       }
 
       const createdOrder = createRes.data?.data?.order || createRes.data?.data;
@@ -130,6 +130,12 @@ const OrderConfirm: React.FC = () => {
 
       if (!orderId) {
         throw new Error('未获取到订单ID');
+      }
+
+      if (!import.meta.env.DEV) {
+        alert('订单已创建，生产支付通道尚未接入，请等待平台开通真实支付后继续。');
+        navigate(`/order/${orderId}`);
+        return;
       }
 
       const payRes: any = await paymentApi.simulatePay({

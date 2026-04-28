@@ -1,40 +1,44 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
+import { adminApi } from '../services/api';
 
 const AdminLogin: React.FC = () => {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState(import.meta.env.DEV ? '13800000001' : '');
+  const [password, setPassword] = useState(import.meta.env.DEV ? '123456' : '');
   const [remember, setRemember] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    // 检查默认管理员账号
-    if (username === 'admin' && password === 'admin123') {
+    try {
+      const response = await adminApi.login({ username, password });
+      const resData = response.data;
+      if (!resData?.success || !resData?.data?.token || !resData?.data?.admin) {
+        throw new Error(resData?.error?.message || resData?.message || '用户名或密码错误');
+      }
+
+      const { token, admin } = resData.data;
       const user = {
-        id: 1,
-        username: 'admin',
-        role: 'admin' as const,
-        phone: 'admin',
-        name: '管理员',
-        status: 'active' as const,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        ...admin,
+        roles: admin.roles || [{ type: 'admin', status: 'active' }],
+        current_role: admin.current_role || 'admin',
       };
-      
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      setAuth(user, 'demo-token-admin');
-      navigate('/admin/dashboard');
-      return;
-    }
 
-    setError('用户名或密码错误');
+      setAuth(user, token);
+      navigate('/admin/dashboard');
+    } catch (err: any) {
+      setError(err?.response?.data?.error?.message || err?.response?.data?.message || err?.message || '用户名或密码错误');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const togglePassword = () => {
@@ -67,7 +71,7 @@ const AdminLogin: React.FC = () => {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="请输入管理员账号"
+                placeholder="请输入管理员手机号"
               required
               className="w-full px-4 py-3.5 border-2 border-slate-200 rounded-xl text-base focus:outline-none focus:border-accent transition-colors"
             />
@@ -105,21 +109,24 @@ const AdminLogin: React.FC = () => {
           </div>
           <button
             type="submit"
-            className="w-full bg-accent text-white border-none py-4 rounded-xl text-lg font-semibold cursor-pointer transition-all hover:bg-accent-light mt-2.5"
+            disabled={loading}
+            className="w-full bg-accent text-white border-none py-4 rounded-xl text-lg font-semibold cursor-pointer transition-all hover:bg-accent-light mt-2.5 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            登录
+            {loading ? '登录中...' : '登录'}
           </button>
         </form>
 
-        <div className="mt-4 p-3 bg-blue-50 text-blue-700 rounded-lg text-sm">
-          <p className="m-0">默认账号：admin / admin123</p>
-        </div>
+        {import.meta.env.DEV && (
+          <div className="mt-4 p-3 bg-blue-50 text-blue-700 rounded-lg text-sm">
+            <p className="m-0">开发演示账号：13800000001 / 123456</p>
+          </div>
+        )}
 
         <div className="mt-6 flex justify-between text-sm">
           <Link to="/" className="text-accent no-underline hover:underline">
             ← 返回首页
           </Link>
-          <Link to="/analyst/login" className="text-accent no-underline hover:underline">
+          <Link to="/login" className="text-accent no-underline hover:underline">
             分析师登录
           </Link>
         </div>

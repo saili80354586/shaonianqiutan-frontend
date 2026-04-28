@@ -3,14 +3,23 @@ import axios from 'axios';
 // ========== Token Refresh Logic ==========
 let isRefreshing = false;
 let refreshSubscribers: Array<(token: string) => void> = [];
+let refreshRejectors: Array<(error: unknown) => void> = [];
 
 function onTokenRefreshed(token: string) {
   refreshSubscribers.forEach((cb) => cb(token));
   refreshSubscribers = [];
+  refreshRejectors = [];
 }
 
-function addRefreshSubscriber(cb: (token: string) => void) {
+function onTokenRefreshFailed(error: unknown) {
+  refreshRejectors.forEach((cb) => cb(error));
+  refreshSubscribers = [];
+  refreshRejectors = [];
+}
+
+function addRefreshSubscriber(cb: (token: string) => void, reject: (error: unknown) => void) {
   refreshSubscribers.push(cb);
+  refreshRejectors.push(reject);
 }
 
 // ========== Base HTTP Client ==========
@@ -24,6 +33,10 @@ export interface ApiResponse<T = any> {
 }
 
 const BASE_URL = import.meta.env.VITE_API_URL || '/api';
+
+export function unwrapApiResponse<T = any>(response: any): ApiResponse<T> {
+  return response?.data?.success !== undefined ? response.data : response;
+}
 
 export const http = axios.create({
   baseURL: BASE_URL,
@@ -43,14 +56,16 @@ http.interceptors.response.use(
     const originalRequest = error.config;
 
     // 401 且不是刷新 token 的请求本身，尝试自动刷新
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+    const isRefreshRequest = typeof originalRequest?.url === 'string' && originalRequest.url.includes('/auth/refresh-token');
+
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isRefreshRequest) {
       if (isRefreshing) {
         // 正在刷新中，将请求加入队列等待新 token
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
           addRefreshSubscriber((token: string) => {
             originalRequest.headers.Authorization = `Bearer ${token}`;
             resolve(http(originalRequest));
-          });
+          }, reject);
         });
       }
 
@@ -69,10 +84,12 @@ http.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return http(originalRequest);
       } catch (refreshError) {
+        onTokenRefreshFailed(refreshError);
         // 刷新失败，清除登录状态并跳转
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('currentRole');
+        localStorage.removeItem('currentUser');
         const currentPath = window.location.pathname + window.location.search;
         if (currentPath !== '/login') {
           sessionStorage.setItem('redirectAfterLogin', currentPath);
@@ -88,6 +105,48 @@ http.interceptors.response.use(
   }
 );
 
+type DownloadParams = Record<string, string | number | boolean | null | undefined>;
+type ReportDocType = 'rating' | 'player-info' | 'report' | 'video';
+
+function getFilenameFromContentDisposition(contentDisposition?: string): string | undefined {
+  if (!contentDisposition) return undefined;
+
+  const utf8Filename = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  if (utf8Filename) {
+    try {
+      return decodeURIComponent(utf8Filename);
+    } catch {
+      return utf8Filename;
+    }
+  }
+
+  return contentDisposition.match(/filename="?([^";]+)"?/i)?.[1];
+}
+
+export async function downloadBlob(
+  path: string,
+  options: { params?: DownloadParams; filename?: string } = {}
+) {
+  const response = await http.get(path, {
+    params: options.params,
+    responseType: 'blob',
+  });
+  const contentType = response.headers?.['content-type'] || 'application/octet-stream';
+  const blob = response.data instanceof Blob
+    ? response.data
+    : new Blob([response.data], { type: contentType });
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  const filename = options.filename || getFilenameFromContentDisposition(response.headers?.['content-disposition']);
+  if (filename) anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
+  return response;
+}
+
 // ========== Auth API ==========
 export const authApi = {
   login: (data: { phone: string; password: string }) =>
@@ -102,12 +161,20 @@ export const authApi = {
   refreshToken: () => http.post('/auth/refresh-token'),
 };
 
+// ========== System API ==========
+export const systemApi = {
+  getPublicSettings: () => http.get('/system/public-settings'),
+};
+
 // ========== User API ==========
 export const userApi = {
   getProfile: () => http.get('/user/profile'),
   updateProfile: (data: any) => http.put('/user/profile', data),
   getGrowthRecords: () => http.get('/user/growth-records'),
-  saveGrowthRecords: (data: any) => http.post('/user/growth-records', data),
+  saveGrowthRecords: (data: any) => http.post('/user/growth-records', Array.isArray(data) ? { records: data } : data),
+  createGrowthRecord: (data: any) => http.post('/user/growth-records', data),
+  updateGrowthRecord: (id: string | number, data: any) => http.put(`/user/growth-records/${id}`, data),
+  deleteGrowthRecord: (id: string | number) => http.delete(`/user/growth-records/${id}`),
   getPublicProfile: (userId: number) => http.get(`/users/${userId}/profile`),
   getPlayerProfile: (userId: number) => http.get(`/users/${userId}/player`),
   getPublicReports: (userId: number) => http.get(`/users/${userId}/reports`),
@@ -138,11 +205,11 @@ export const orderApi = {
   // 支付后补充资料
   supplementOrder: (id: number, data: any) => http.post(`/orders/${id}/supplement`, data),
   // 下载 AI 报告
-  getAIReportDownloadUrl: (orderId: number, type: 'report' | 'video') => {
-    const token = localStorage.getItem('token');
-    const base = import.meta.env.VITE_API_URL || '/api';
-    return `${base}/orders/${orderId}/ai-report?type=${type}&token=${token}`;
-  },
+  downloadAIReport: (orderId: number, type: 'report' | 'video') =>
+    downloadBlob(`/orders/${orderId}/ai-report`, {
+      params: { type },
+      filename: type === 'report' ? `AI分析报告_${orderId}.docx` : `AI视频分析_${orderId}.mp4`,
+    }),
 };
 
 // ========== Report API ==========
@@ -150,7 +217,12 @@ export const reportApi = {
   getMyReports: (params?: any) => http.get('/reports/my', { params }),
   getPublishedReports: (params?: any) => http.get('/reports/published', { params }),
   getReportDetail: (id: number) => http.get(`/reports/${id}`),
+  getById: (id: string | number) => http.get(`/reports/${id}`),
+  create: (data: any) => http.post('/reports', data),
+  update: (id: string | number, data: any) => http.put(`/reports/${id}`, data),
   downloadReport: (id: number) => http.get(`/reports/${id}/download`, { responseType: 'blob' }),
+  downloadReportFile: (id: number, filename?: string) =>
+    downloadBlob(`/reports/${id}/download`, { filename }),
   getPlayerReports: (playerId: number) => http.get(`/club/players/${playerId}/physical-reports`),
   exportPDF: (reportId: string) => http.get(`/club/reports/${reportId}/export`, { responseType: 'blob' }),
 };
@@ -160,7 +232,7 @@ export const paymentApi = {
   createPayment: (data: { order_id: number; amount: number; type: string }) => http.post('/payment/', data),
   simulatePay: (data: { order_id: number; payment_method: string }) => http.post('/payment/simulate', data),
   getPaymentStatus: (id: string) => http.get(`/payment/${id}`),
-  getOrderPaymentStatus: (orderId: number) => http.get(`/orders/${orderId}/payment-status`),
+  getOrderPaymentStatus: (orderId: number) => http.get(`/order-payment/${orderId}/payment-status`),
   refund: (id: string) => http.post(`/payment/${id}/refund`, {}),
 };
 
@@ -188,16 +260,16 @@ export const analystApi = {
   getIncomeTrend: (range: string) => http.get('/analyst/income-trend', { params: { range } }),
   submitReport: (orderId: string, data: any) => http.post(`/analyst/orders/${orderId}/submit-report`, data),
   saveRatingDraft: (orderId: string, data: any) => http.post(`/analyst/orders/${orderId}/draft`, data),
-  getDownloadUrl: (orderId: number, type: 'rating' | 'player-info') => {
-    const token = localStorage.getItem('token');
-    const base = import.meta.env.VITE_API_URL || '/api';
-    return `${base}/analyst/orders/${orderId}/download?type=${type}&token=${token}`;
-  },
-  getAIReportUrl: (orderId: number, type: 'report' | 'video') => {
-    const token = localStorage.getItem('token');
-    const base = import.meta.env.VITE_API_URL || '/api';
-    return `${base}/analyst/orders/${orderId}/ai-report?type=${type}&token=${token}`;
-  },
+  downloadReportDoc: (orderId: number, type: 'rating' | 'player-info') =>
+    downloadBlob(`/analyst/orders/${orderId}/download`, {
+      params: { type },
+      filename: type === 'rating' ? `评分报告_${orderId}.md` : `球员基础信息_${orderId}.md`,
+    }),
+  downloadAIReport: (orderId: number, type: 'report' | 'video') =>
+    downloadBlob(`/analyst/orders/${orderId}/ai-report`, {
+      params: { type },
+      filename: type === 'report' ? `AI分析报告_${orderId}.docx` : `AI视频分析_${orderId}.mp4`,
+    }),
 };
 
 // ========== Video Analysis API ==========
@@ -263,12 +335,12 @@ export const videoAnalysisApi = {
   confirmAnalysis: (id: number) =>
     http.post(`/video-analysis/${id}/confirm`),
 
-  // 获取 MD 文档下载 URL（管理员用）
-  getDownloadUrl: (id: number, docType: 'rating' | 'player-info') => {
-    const token = localStorage.getItem('token');
-    const base = import.meta.env.VITE_API_URL || '/api';
-    return `${base}/video-analysis/${id}/download?type=${docType}&token=${token}`;
-  },
+  // 下载 MD 文档（管理员用）
+  downloadDoc: (id: number, docType: 'rating' | 'player-info') =>
+    downloadBlob(`/admin/video-analysis/${id}/download`, {
+      params: { type: docType },
+      filename: docType === 'rating' ? `评分报告_${id}.md` : `球员基础信息_${id}.md`,
+    }),
 };
 
 // ========== Scout API ==========
@@ -604,17 +676,25 @@ export const adminApi = {
   cancelOrder: (id: number) => http.delete(`/admin/orders/${id}`),
   getOrderStats: () => http.get('/admin/orders/stats'),
   getAnalysts: (params?: any) => http.get('/admin/analysts', { params }),
+  listAnalysts: (page?: number, pageSize?: number, status?: string) =>
+    http.get('/admin/analysts', { params: { page, pageSize, status } }),
   auditAnalyst: (id: number, data: any) => http.put(`/admin/analysts/${id}/audit`, data),
   updateAnalystStatus: (id: number, status: string) => http.put(`/admin/analysts/${id}/status`, { status }),
   getAnalystIncomeStats: (id: number) => http.get(`/admin/analysts/${id}/income`),
   getPendingReports: () => http.get('/admin/reports/pending'),
   reviewReport: (id: string, status: string, remark: string) =>
     http.post(`/admin/reports/${id}/review`, { status, remark }),
-  getReportDownloadUrl: (reportId: number, type: 'rating' | 'player-info') => {
-    const token = localStorage.getItem('token');
-    const base = import.meta.env.VITE_API_URL || '/api';
-    return `${base}/admin/reports/${reportId}/download?type=${type}&token=${token}`;
-  },
+  downloadReportDoc: (reportId: number, type: ReportDocType) =>
+    downloadBlob(`/admin/reports/${reportId}/download`, {
+      params: { type },
+      filename: type === 'player-info'
+        ? `球员基础信息_${reportId}.md`
+        : type === 'video'
+          ? `AI视频分析_${reportId}.mp4`
+          : type === 'report'
+            ? `AI分析报告_${reportId}.docx`
+            : `评分报告_${reportId}.md`,
+    }),
   uploadAIReport: (reportId: number, file: File) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -643,6 +723,8 @@ export const adminApi = {
   processSettlement: (data: { order_ids: number[] }) => http.post('/admin/settlements/process', data),
   // 订单派发
   getPendingDispatchOrders: () => http.get('/admin/orders', { params: { status: 'uploaded' } }),
+  getAssignmentRecords: (params?: any) => http.get('/admin/orders/assignments', { params }),
+  getOrderStatusHistory: (orderId: number) => http.get(`/admin/orders/${orderId}/status-history`),
   getAvailableAnalysts: (params?: any) => http.get('/admin/analysts/available', { params }),
   assignOrder: (orderId: string, data: any) => http.post(`/admin/orders/${orderId}/assign`, data),
   // 举报处理
@@ -672,6 +754,8 @@ export const adminApi = {
   // 登录日志
   getLoginLogs: (params?: any) => http.get('/admin/login-logs', { params }),
   getLoginLogStats: (days?: number) => http.get('/admin/login-logs/stats', { params: { days } }),
+  getSettings: () => http.get('/admin/settings'),
+  updateSettings: (data: any) => http.put('/admin/settings', data),
 };
 
 // ========== Analyst Application API ==========
@@ -714,6 +798,9 @@ export const playerApi = {
 
   // 获取球员公开资料（无需登录）
   getPublicProfile: (userId: number) => http.get(`/players/${userId}/public`),
+
+  // 获取球员个人主页聚合数据（公开页）
+  getHomepage: (userId: string | number) => http.get(`/players/${userId}/homepage`),
 };
 
 // ========== Upload API ==========
@@ -742,6 +829,11 @@ export const trialApi = {
     contact_phone: string;
     note?: string;
   }) => http.post('/trial-invites', data),
+  getMyInvites: () => http.get('/trial-invites/my'),
+  respondInvite: (
+    id: string | number,
+    data: { status: 'accepted' | 'declined'; response_note?: string }
+  ) => http.put(`/trial-invites/${id}/respond`, data),
 };
 
 // ========== Scout Map API ==========

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { User } from '../types';
-import { adminApi } from '../services/api';
+import { adminApi, unwrapApiResponse } from '../services/api';
 import { Loading } from '../components';
 import { Search, Filter, Eye, Ban, CheckCircle, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -22,9 +22,10 @@ const UserManagement: React.FC = () => {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const response = await adminApi.listUsers(currentPage, pageSize);
-      if (response.success && response.data) {
-        let filteredUsers = response.data.list;
+      const response = await adminApi.listUsers({ page: currentPage, pageSize });
+      const payload = unwrapApiResponse(response);
+      if (payload.success && payload.data) {
+        let filteredUsers = payload.data.list;
         
         // 状态筛选
         if (statusFilter !== 'all') {
@@ -40,7 +41,7 @@ const UserManagement: React.FC = () => {
         }
         
         setUsers(filteredUsers);
-        setTotalUsers(response.data.total);
+        setTotalUsers(payload.data.total);
       }
     } catch (error) {
       console.error('加载用户列表失败', error);

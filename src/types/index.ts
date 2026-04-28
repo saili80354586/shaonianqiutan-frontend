@@ -141,7 +141,7 @@ export interface Report {
 }
 
 // 订单类型
-export type OrderType = 'text' | 'video' | 'pro';
+export type OrderType = 'basic' | 'text' | 'video' | 'pro';
 
 // 订单状态 - 扩展状态机
 export type OrderStatus = 
@@ -158,6 +158,11 @@ export type OrderStatus =
 
 // 订单派发状态
 export type AssignmentStatus = 'pending' | 'accepted' | 'rejected' | 'expired';
+
+export type AssignmentAnalyst = User & {
+  name?: string;
+  user?: User;
+};
 
 // 订单类型
 export interface Order {
@@ -211,7 +216,7 @@ export interface OrderAssignment {
   id: number;
   order_id: number;
   analyst_id: number;
-  assigned_by: number;
+  assigned_by?: number;
   assigned_at: string;
   status: AssignmentStatus;
   rejected_reason?: string;
@@ -219,7 +224,8 @@ export interface OrderAssignment {
   
   // 关联数据
   order?: Order;
-  analyst?: User;
+  analyst?: AssignmentAnalyst;
+  assigned_by_user?: User;
   assignedBy?: User;
 }
 
@@ -501,7 +507,32 @@ export type FavoriteTargetType = 'player_homepage' | 'scout_report' | 'analyst_r
 export type CommentTargetType = 'player_homepage' | 'scout_report' | 'analyst_report' | 'growth_record' | 'video';
 
 // 通知类型
-export type NotificationType = 'like' | 'favorite' | 'comment' | 'mention' | 'system' | 'order' | 'report' | 'task' | 'follow' | 'message';
+export type NotificationType =
+  | 'like'
+  | 'favorite'
+  | 'comment'
+  | 'mention'
+  | 'system'
+  | 'order'
+  | 'report'
+  | 'task'
+  | 'inquiry'
+  | 'follow'
+  | 'message'
+  | 'weekly_report_created'
+  | 'weekly_report_rejected'
+  | 'weekly_report_approved'
+  | 'weekly_report_reminder'
+  | 'match_summary_created'
+  | 'match_player_reminder'
+  | 'match_coach_reminder'
+  | 'match_summary_complete'
+  | 'activity_registration'
+  | 'activity_approved'
+  | 'activity_rejected'
+  | 'invitation'
+  | 'trial_invite'
+  | 'scout_report';
 
 // 通知优先级
 export type NotificationPriority = 1 | 2 | 3;
@@ -580,8 +611,8 @@ export interface NotificationData {
   club_id?: number;
   target_role?: string;
   role_label?: string;
-  status?: 'pending' | 'accepted' | 'rejected' | 'expired';
-  _handled?: 'accepted' | 'rejected';
+  status?: 'pending' | 'accepted' | 'rejected' | 'expired' | 'declined' | 'completed';
+  _handled?: 'accepted' | 'rejected' | 'declined';
 }
 
 // 通知

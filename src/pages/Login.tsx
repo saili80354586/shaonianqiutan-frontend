@@ -103,37 +103,22 @@ const Login: React.FC = () => {
       const resData = response.data;
       if (resData && resData.success && resData.data) {
         const { token, user } = resData.data;
-        localStorage.setItem('token', token);
         setAuth(user, token);
-        localStorage.setItem('currentUser', JSON.stringify({
-          username: user.nickname || user.name,
-          role: user.role,
-          userId: user.id,
-          token: token,
-          name: user.name || user.nickname,
-          phone: user.phone,
-          loginTime: new Date().toISOString()
-        }));
         navigate(getRoleRedirectPath(user.role));
       } else {
         throw new Error(resData?.error?.message || resData?.error || '登录失败');
       }
     } catch (err: any) {
+      if (!import.meta.env.DEV) {
+        setError(err?.response?.data?.error?.message || err?.response?.data?.message || err?.message || '登录失败');
+        return;
+      }
+
       // 后端登录失败，使用本地mock登录
       await new Promise(resolve => setTimeout(resolve, 300));
       const mockToken = `mock_token_${userRole}_${Date.now()}`;
       const user = { id: userId, name, nickname: name, phone, role: userRole, roles: [{ type: userRole, status: 'active' as const }] };
-      localStorage.setItem('token', mockToken);
       setAuth(user, mockToken);
-      localStorage.setItem('currentUser', JSON.stringify({
-        username: name,
-        role: userRole,
-        userId: userId,
-        token: mockToken,
-        name: name,
-        phone: phone,
-        loginTime: new Date().toISOString()
-      }));
       navigate(getRoleRedirectPath(userRole));
     } finally {
       setLoadingDemo(null);
@@ -153,17 +138,7 @@ const Login: React.FC = () => {
       }
 
       const { token, user } = resData.data;
-      localStorage.setItem('token', token);
       setAuth(user, token);
-      localStorage.setItem('currentUser', JSON.stringify({
-        username: user.nickname || user.name,
-        role: user.role || role,
-        userId: user.id,
-        token: token,
-        name: user.name || user.nickname,
-        phone: user.phone,
-        loginTime: new Date().toISOString()
-      }));
 
       const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
       if (redirectUrl) {

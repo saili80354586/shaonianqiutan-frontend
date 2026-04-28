@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { toast } from 'sonner';
 import { adminApi } from '../../services/api';
 import type { Order } from '../../types';
 import { Loading } from '../../components';
-import { ClipboardList, Package, User, CreditCard, Clock, Upload, Video, FileText, CheckCircle } from 'lucide-react';
+import { ClipboardList, Package, User, CreditCard, Clock, Upload, Video, FileText, CheckCircle, Download } from 'lucide-react';
 
 const Orders: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -60,8 +61,7 @@ const Orders: React.FC = () => {
 
   const getOrderTypeName = (type?: string) => {
     if (type === 'basic') return '文字版';
-    if (type === 'video') return '视频版';
-    if (type === 'pro') return '文字+视频版';
+    if (type === 'video' || type === 'pro') return '视频解析版';
     return '文字版';
   };
 
@@ -71,10 +71,10 @@ const Orders: React.FC = () => {
     setUploadingId(orderId);
     try {
       await adminApi.uploadAIReport(reportId, file);
-      alert('AI 报告上传成功');
+      toast.success('AI 报告上传成功');
       loadOrders();
     } catch (err: any) {
-      alert('上传失败: ' + (err?.response?.data?.message || err?.message || '未知错误'));
+      toast.error('上传失败: ' + (err?.response?.data?.message || err?.message || '未知错误'));
     } finally {
       setUploadingId(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -87,10 +87,10 @@ const Orders: React.FC = () => {
     setUploadingId(orderId);
     try {
       await adminApi.uploadAIVideo(reportId, file);
-      alert('AI 视频分析上传成功');
+      toast.success('AI 视频分析上传成功');
       loadOrders();
     } catch (err: any) {
-      alert('上传失败: ' + (err?.response?.data?.message || err?.message || '未知错误'));
+      toast.error('上传失败: ' + (err?.response?.data?.message || err?.message || '未知错误'));
     } finally {
       setUploadingId(null);
       if (videoInputRef.current) videoInputRef.current.value = '';
@@ -199,15 +199,13 @@ const Orders: React.FC = () => {
                         <div className="flex flex-col gap-2">
                           {/* 下载 AI 报告（如果有） */}
                           {order.report?.ai_report_url && (
-                            <a
-                              href={`/api/admin/reports/${order.report.id}/download?type=report`}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
+                              onClick={() => adminApi.downloadReportDoc(order.report!.id, 'report').catch(() => toast.error('下载失败，请稍后重试'))}
                               className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 rounded-lg transition-colors text-xs"
                             >
                               <Download className="w-3.5 h-3.5" />
                               下载分析报告.docx
-                            </a>
+                            </button>
                           )}
                           {/* 上传 AI 报告 */}
                           <button

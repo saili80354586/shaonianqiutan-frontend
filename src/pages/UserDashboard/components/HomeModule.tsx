@@ -184,7 +184,8 @@ export const HomeModule: React.FC<HomeModuleProps> = ({ onTabChange }) => {
         // 处理报告数据
         let reports: Report[] = [];
         if (reportsRes.status === 'fulfilled' && reportsRes.value.data?.success) {
-          reports = reportsRes.value.data.data?.list || [];
+          const result = reportsRes.value.data.data?.data || reportsRes.value.data.data || {};
+          reports = result.list || [];
           setRecentReports(reports);
         }
 

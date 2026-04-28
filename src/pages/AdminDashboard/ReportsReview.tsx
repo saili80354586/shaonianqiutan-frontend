@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { adminApi } from '../../services/api';
 import type { Report } from '../../types';
 import { Loading } from '../../components';
 import { CheckCircle, XCircle, FileText, User, Calendar, Download, FileDown } from 'lucide-react';
+import AdminConfirmDialog from './components/AdminConfirmDialog';
 
 const ReportsReview: React.FC = () => {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reviewAction, setReviewAction] = useState<{ id: number; action: 'completed' | 'failed' } | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   useEffect(() => {
     loadReports();
@@ -26,24 +30,27 @@ const ReportsReview: React.FC = () => {
     }
   };
 
-  const handleApprove = async (reportId: number) => {
-    if (!window.confirm('确定批准这篇报告吗？')) return;
-    try {
-      await adminApi.reviewReport(reportId.toString(), 'completed', '');
-      setReports(reports.filter(r => r.id !== reportId));
-    } catch (error) {
-      console.error('批准失败', error);
-    }
+  const handleApprove = (reportId: number) => {
+    setReviewAction({ id: reportId, action: 'completed' });
   };
 
-  const handleReject = async (reportId: number) => {
-    const reason = window.prompt('请输入拒绝原因：');
-    if (reason === null) return;
+  const handleReject = (reportId: number) => {
+    setRejectReason('');
+    setReviewAction({ id: reportId, action: 'failed' });
+  };
+
+  const confirmReview = async () => {
+    if (!reviewAction) return;
     try {
-      await adminApi.reviewReport(reportId.toString(), 'failed', reason || '未通过审核');
-      setReports(reports.filter(r => r.id !== reportId));
+      const remark = reviewAction.action === 'failed' ? (rejectReason.trim() || '未通过审核') : '';
+      await adminApi.reviewReport(reviewAction.id.toString(), reviewAction.action, remark);
+      setReports(reports.filter(r => r.id !== reviewAction.id));
+      toast.success(reviewAction.action === 'completed' ? '报告已批准' : '报告已退回');
+      setReviewAction(null);
+      setRejectReason('');
     } catch (error) {
-      console.error('拒绝失败', error);
+      console.error('审核失败', error);
+      toast.error('审核操作失败');
     }
   };
 
@@ -118,14 +125,14 @@ const ReportsReview: React.FC = () => {
                           </button>
                           <div className="absolute right-0 top-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 min-w-[180px]">
                             <button
-                              onClick={() => window.open(adminApi.getReportDownloadUrl(report.id, 'rating'), '_blank')}
+                              onClick={() => adminApi.downloadReportDoc(report.id, 'rating').catch(() => toast.error('下载失败，请稍后重试'))}
                               className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-700 rounded-t-lg flex items-center gap-2 text-slate-200"
                             >
                               <FileText className="w-4 h-4 text-green-400" />
                               评分报告.md
                             </button>
                             <button
-                              onClick={() => window.open(adminApi.getReportDownloadUrl(report.id, 'player-info'), '_blank')}
+                              onClick={() => adminApi.downloadReportDoc(report.id, 'player-info').catch(() => toast.error('下载失败，请稍后重试'))}
                               className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-700 rounded-b-lg flex items-center gap-2 text-slate-200"
                             >
                               <User className="w-4 h-4 text-blue-400" />
@@ -147,6 +154,27 @@ const ReportsReview: React.FC = () => {
           <p className="text-slate-400">暂无待审核报告</p>
         </div>
       )}
+      <AdminConfirmDialog
+        open={Boolean(reviewAction)}
+        title={reviewAction?.action === 'completed' ? '批准报告' : '退回报告'}
+        description={reviewAction?.action === 'completed' ? '确认批准这篇报告？批准后报告会进入完成状态。' : '确认退回这篇报告？退回原因会记录在审核结果中。'}
+        confirmText={reviewAction?.action === 'completed' ? '批准' : '退回'}
+        tone={reviewAction?.action === 'completed' ? 'success' : 'danger'}
+        onConfirm={confirmReview}
+        onCancel={() => {
+          setReviewAction(null);
+          setRejectReason('');
+        }}
+      >
+        {reviewAction?.action === 'failed' && (
+          <textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            className="min-h-24 w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-red-500/50 focus:outline-none"
+            placeholder="请输入退回原因，留空则使用默认原因"
+          />
+        )}
+      </AdminConfirmDialog>
     </div>
   );
 };

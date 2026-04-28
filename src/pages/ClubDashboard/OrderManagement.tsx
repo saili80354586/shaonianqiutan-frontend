@@ -21,10 +21,13 @@ interface OrderManagementProps {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: LucideIcon }> = {
   pending: { label: '待支付', color: 'text-yellow-400 bg-yellow-500/20', icon: Clock },
-  paid: { label: '已支付', color: 'text-blue-400 bg-blue-500/20', icon: FileText },
+  paid: { label: '待上传', color: 'text-blue-400 bg-blue-500/20', icon: FileText },
+  uploaded: { label: '待分配', color: 'text-purple-400 bg-purple-500/20', icon: FileText },
+  assigned: { label: '已派单', color: 'text-cyan-400 bg-cyan-500/20', icon: Clock },
   processing: { label: '分析中', color: 'text-blue-400 bg-blue-500/20', icon: Clock },
   completed: { label: '已完成', color: 'text-green-400 bg-green-500/20', icon: CheckCircle },
   cancelled: { label: '已取消', color: 'text-red-400 bg-red-500/20', icon: XCircle },
+  refunded: { label: '已退款', color: 'text-gray-400 bg-gray-500/20', icon: XCircle },
 };
 
 const OrderManagement: React.FC<OrderManagementProps> = ({ onBack }) => {
@@ -32,29 +35,36 @@ const OrderManagement: React.FC<OrderManagementProps> = ({ onBack }) => {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [stats, setStats] = useState({ total: 0, pending: 0, completed: 0, totalAmount: 0 });
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => { loadOrders(); }, [statusFilter]);
 
   const loadOrders = async () => {
     setLoading(true);
     try {
-      const res = await orderApi.list?.();
-      if (res?.data?.success && res?.data?.data) {
-        const orders = res.data.data.orders || [];
-        setOrders(orders);
-        const pending = orders.filter((o: Order) => o.status === 'pending').length || 0;
-        const completed = orders.filter((o: Order) => o.status === 'completed').length || 0;
-        const total = orders.length || 0;
-        const totalAmount = orders.reduce((sum: number, o: Order) => sum + (o.finalPrice || 0), 0) || 0;
-        setStats({ total, pending, completed, totalAmount });
-      }
-    } catch (error) {
-      setOrders([
-        { id: 1, orderNo: 'CLUB20260405001', playerName: '张小明', analystName: '李分析师', serviceName: '全方位技术分析报告', price: 299, finalPrice: 284, status: 'completed', createdAt: '2026-04-03' },
-        { id: 2, orderNo: 'CLUB20260405002', playerName: '李小红', analystName: '待分配', serviceName: '快速分析报告', price: 99, finalPrice: 99, status: 'pending', createdAt: '2026-04-02' },
-        { id: 3, orderNo: 'CLUB20260405003', playerName: '王强', analystName: '王分析师', serviceName: '全方位技术分析报告', price: 299, finalPrice: 284, status: 'processing', createdAt: '2026-04-01' },
+      setErrorMsg('');
+      const params = statusFilter !== 'all' ? { status: statusFilter } : undefined;
+      const [ordersRes, statsRes] = await Promise.all([
+        orderApi.getClubOrders(params),
+        orderApi.getOrderStats(),
       ]);
-      setStats({ total: 3, pending: 1, completed: 1, totalAmount: 667 });
+      if (!ordersRes.data?.success) {
+        throw new Error(ordersRes.data?.error?.message || '获取订单列表失败');
+      }
+      const loadedOrders = ordersRes.data.data?.orders || [];
+      const loadedStats = statsRes.data?.success ? statsRes.data.data || {} : {};
+      setOrders(loadedOrders);
+      setStats({
+        total: Number(loadedStats.totalOrders ?? loadedOrders.length ?? 0),
+        pending: Number(loadedStats.pendingOrders ?? loadedOrders.filter((order: Order) => ['pending', 'paid'].includes(order.status)).length ?? 0),
+        completed: Number(loadedStats.completedOrders ?? loadedOrders.filter((order: Order) => order.status === 'completed').length ?? 0),
+        totalAmount: Number(loadedStats.totalAmount ?? loadedOrders.reduce((sum: number, order: Order) => sum + (order.finalPrice || 0), 0) ?? 0),
+      });
+    } catch (error: any) {
+      console.error('加载俱乐部订单失败:', error);
+      setOrders([]);
+      setStats({ total: 0, pending: 0, completed: 0, totalAmount: 0 });
+      setErrorMsg(error?.response?.data?.error?.message || error?.message || '订单加载失败，请稍后重试');
     }
     setLoading(false);
   };
@@ -106,12 +116,20 @@ const OrderManagement: React.FC<OrderManagementProps> = ({ onBack }) => {
             className="px-4 py-2 bg-[#1a1f2e] border border-gray-700 rounded-xl text-white focus:outline-none focus:border-emerald-500">
             <option value="all">全部状态</option>
             <option value="pending">待支付</option>
-            <option value="paid">已支付</option>
+            <option value="paid">待上传</option>
+            <option value="uploaded">待分配</option>
+            <option value="assigned">已派单</option>
             <option value="processing">分析中</option>
             <option value="completed">已完成</option>
             <option value="cancelled">已取消</option>
           </select>
         </div>
+
+        {errorMsg && (
+          <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {errorMsg}
+          </div>
+        )}
 
         {/* 订单列表 */}
         {loading ? (

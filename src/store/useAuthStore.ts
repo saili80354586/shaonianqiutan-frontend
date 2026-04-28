@@ -25,11 +25,39 @@ const getStoredRole = (): UserRole | null => {
   }
 };
 
+const toStoredUser = (user: Partial<User> | null): Partial<User> | null => {
+  if (!user) return null;
+  return {
+    id: user.id,
+    name: user.name,
+    nickname: user.nickname,
+    avatar: user.avatar,
+    roles: user.roles?.map((r: any) => ({ type: r.type, status: r.status })),
+    current_role: user.current_role,
+    currentRole: user.currentRole,
+    role: user.role,
+  };
+};
+
+const persistUser = (user: Partial<User> | null) => {
+  const storedUser = toStoredUser(user);
+  if (storedUser) {
+    localStorage.setItem('user', JSON.stringify(storedUser));
+  } else {
+    localStorage.removeItem('user');
+  }
+};
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: (() => {
     try {
       const stored = localStorage.getItem('user');
-      return stored ? JSON.parse(stored) : null;
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+      const storedUser = toStoredUser(parsed);
+      if (storedUser) localStorage.setItem('user', JSON.stringify(storedUser));
+      localStorage.removeItem('currentUser');
+      return storedUser as User;
     } catch {
       return null;
     }
@@ -41,18 +69,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setAuth: (user, token) => {
     localStorage.setItem('token', token);
-    // 只存储必要的最小用户信息，避免敏感字段泄露
-    const minimalUser = {
-      id: user.id,
-      name: user.name,
-      avatar: user.avatar,
-      phone: user.phone,
-      roles: user.roles?.map((r: any) => ({ type: r.type, status: r.status })),
-      current_role: user.current_role,
-      currentRole: user.currentRole,
-      role: user.role,
-    };
-    localStorage.setItem('user', JSON.stringify(minimalUser));
+    localStorage.removeItem('currentUser');
+    persistUser(user);
     // 优先使用后端返回的 current_role / currentRole（后端 GetUserByID 已确保有默认值）
     let defaultRole: UserRole | null = user.current_role || user.currentRole || null;
     // 其次从 roles 数组中找第一个 active 的角色
@@ -74,6 +92,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('currentRole');
+    localStorage.removeItem('currentUser');
     set({ user: null, token: null, isAuthenticated: false, currentRole: null });
   },
 
@@ -82,7 +101,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   updateUser: (updatedUser) => set((state) => {
     const user = state.user ? { ...state.user, ...updatedUser } : null;
     if (user) {
-      localStorage.setItem('user', JSON.stringify(user));
+      persistUser(user);
     }
     return { user };
   }),
@@ -100,7 +119,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       // 如果后端返回了更新后的用户数据，优先使用
       const updatedUser = response.data?.data?.user;
       if (updatedUser) {
-        localStorage.setItem('user', JSON.stringify(updatedUser));
+        persistUser(updatedUser);
         set({ user: updatedUser, currentRole: role });
         return;
       }
@@ -109,7 +128,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set((state) => {
         const user = state.user ? { ...state.user, currentRole: role, current_role: role } : null;
         if (user) {
-          localStorage.setItem('user', JSON.stringify(user));
+          persistUser(user);
         }
         return { user, currentRole: role };
       });
@@ -120,7 +139,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set((state) => {
         const user = state.user ? { ...state.user, currentRole: role, current_role: role } : null;
         if (user) {
-          localStorage.setItem('user', JSON.stringify(user));
+          persistUser(user);
         }
         return { user, currentRole: role };
       });

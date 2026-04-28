@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Menu } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Home, Menu } from 'lucide-react';
 import { DashboardSidebar } from './DashboardSidebar';
 import type { DashboardLayoutProps } from './types';
-import { useAuthStore } from '../../store';
 
 // ============================================================
 // 组件：DashboardLayout
@@ -24,8 +23,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
-  const { user } = useAuthStore();
 
   // 阻止背景滚动当侧边栏打开时
   useEffect(() => {
@@ -39,17 +36,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     };
   }, [sidebarOpen]);
 
-  // 路由变化时关闭移动端侧边栏
-  useEffect(() => {
-    setSidebarOpen(false);
-  }, [location.pathname]);
-
   // 计算页面标题
   const getPageTitle = () => {
     if (pageTitle) return pageTitle;
     // 可以从当前路由或菜单配置中自动获取
     return '';
   };
+
+  const currentPageTitle = getPageTitle();
 
   return (
     <div className={`min-h-screen bg-[#0a0d12] ${className}`}>
@@ -69,8 +63,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         {/* 顶部头部 */}
         <header className="sticky top-0 z-30 bg-[#0a0d12]/80 backdrop-blur-sm border-b border-white/[0.06]">
           <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
-            {/* 左侧：菜单按钮 + 标题 */}
-            <div className="flex items-center gap-4">
+            {/* 左侧：菜单按钮 + 顶部导航 + 标题 */}
+            <div className="flex items-center gap-3 min-w-0">
               {showMobileMenuButton && (
                 <button
                   onClick={() => setSidebarOpen(true)}
@@ -79,10 +73,41 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   <Menu className="w-5 h-5" />
                 </button>
               )}
-              {pageTitle && (
-                <h1 className="text-lg sm:text-xl font-semibold text-white tracking-tight">
-                  {pageTitle}
-                </h1>
+
+              <Link
+                to="/"
+                className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/[0.05] transition-colors flex-shrink-0"
+              >
+                <Home className="w-4 h-4" />
+                <span className="hidden sm:inline">少年球探首页</span>
+                <span className="sm:hidden">首页</span>
+              </Link>
+
+              {currentPageTitle && (
+                <>
+                  <span className="hidden sm:block h-5 w-px bg-white/[0.08]" />
+                  <h1 className="min-w-0 truncate text-lg sm:text-xl font-semibold text-white tracking-tight">
+                    {currentPageTitle}
+                  </h1>
+                </>
+              )}
+
+              {sidebarConfig.headerNavItems && sidebarConfig.headerNavItems.length > 0 && (
+                <nav className="hidden md:flex items-center gap-1 ml-2">
+                  {sidebarConfig.headerNavItems.map((item) => (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                        location.pathname === item.path
+                          ? 'text-white bg-white/[0.06]'
+                          : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </nav>
               )}
             </div>
 

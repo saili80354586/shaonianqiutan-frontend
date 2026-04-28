@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { Settings as SettingsIcon, Globe, DollarSign } from 'lucide-react';
+import { adminApi } from '../../services/api';
 
 interface ToggleRowProps {
   label: string;
@@ -32,6 +34,9 @@ const ToggleRow: React.FC<ToggleRowProps> = ({ label, description, checked, onCh
 );
 
 const SettingsPage: React.FC = () => {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const [settings, setSettings] = useState({
     siteName: '少年球探',
     allowRegistration: true,
@@ -41,9 +46,49 @@ const SettingsPage: React.FC = () => {
     maintenanceMode: false
   });
 
-  const handleSave = () => {
-    alert('设置已保存（模拟）');
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const res = await adminApi.getSettings();
+        if (res.data?.success && res.data?.data) {
+          setSettings({
+            siteName: res.data.data.siteName ?? '少年球探',
+            allowRegistration: Boolean(res.data.data.allowRegistration),
+            requireApproval: Boolean(res.data.data.requireApproval),
+            defaultAnalystPrice: Number(res.data.data.defaultAnalystPrice ?? 299),
+            commissionRate: Number(res.data.data.commissionRate ?? 20),
+            maintenanceMode: Boolean(res.data.data.maintenanceMode),
+          });
+        }
+      } catch (err: any) {
+        setError(err?.response?.data?.error?.message || '系统设置加载失败');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadSettings();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      const res = await adminApi.updateSettings(settings);
+      if (res.data?.success) {
+        toast.success('设置已保存');
+      } else {
+        setError(res.data?.error?.message || '保存失败');
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.error?.message || '保存失败');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return <div className="text-slate-400">系统设置加载中...</div>;
+  }
 
   return (
     <div className="max-w-3xl">
@@ -52,6 +97,11 @@ const SettingsPage: React.FC = () => {
       </h2>
 
       <div className="bg-white/[0.02] rounded-2xl p-6 border border-white/[0.06] space-y-6">
+        {error && (
+          <div className="px-4 py-3 rounded-xl border border-red-500/20 bg-red-500/10 text-red-300 text-sm">
+            {error}
+          </div>
+        )}
         {/* 网站名称 */}
         <div>
           <label className="block text-sm font-medium text-white mb-2 flex items-center gap-1.5">
@@ -116,9 +166,10 @@ const SettingsPage: React.FC = () => {
         <div className="pt-6 border-t border-white/[0.06]">
           <button
             onClick={handleSave}
-            className="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-medium py-2.5 px-4 rounded-xl transition-colors"
+            disabled={saving}
+            className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 text-white font-medium py-2.5 px-4 rounded-xl transition-colors"
           >
-            保存设置
+            {saving ? '保存中...' : '保存设置'}
           </button>
         </div>
       </div>

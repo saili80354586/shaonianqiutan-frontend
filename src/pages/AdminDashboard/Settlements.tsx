@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { adminApi } from '../../services/api';
 import { CreditCard, CheckCircle, Loader2, DollarSign, Calendar, User } from 'lucide-react';
+import AdminConfirmDialog from './components/AdminConfirmDialog';
 
 interface SettlementOrder {
   id: number;
@@ -20,6 +22,7 @@ const Settlements: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [processing, setProcessing] = useState(false);
   const [stats, setStats] = useState({ total: 0, pending: 0, settled: 0, amount: 0 });
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const fetchOrders = async () => {
     try {
@@ -45,13 +48,14 @@ const Settlements: React.FC = () => {
 
   const handleSettlement = async () => {
     if (selectedIds.length === 0) return;
-    if (!confirm(`确定对选中的 ${selectedIds.length} 笔订单进行结算？`)) return;
     setProcessing(true);
     try {
       await adminApi.processSettlement({ order_ids: selectedIds });
+      toast.success('结算处理完成');
       setSelectedIds([]);
+      setConfirmOpen(false);
       fetchOrders();
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); toast.error('结算处理失败'); }
     finally { setProcessing(false); }
   };
 
@@ -64,7 +68,7 @@ const Settlements: React.FC = () => {
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-white flex items-center gap-2"><CreditCard className="w-5 h-5 text-emerald-400" /> 分析师结算</h2>
         {selectedIds.length > 0 && (
-          <button onClick={handleSettlement} disabled={processing} className="flex items-center gap-2 px-4 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/30 transition-colors text-sm">
+          <button onClick={() => setConfirmOpen(true)} disabled={processing} className="flex items-center gap-2 px-4 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/30 transition-colors text-sm">
             {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
             结算选中 ({selectedIds.length})
           </button>
@@ -128,6 +132,16 @@ const Settlements: React.FC = () => {
           </tbody>
         </table>
       </div>
+      <AdminConfirmDialog
+        open={confirmOpen}
+        title="确认结算"
+        description={`确定对选中的 ${selectedIds.length} 笔订单进行结算？该操作会更新结算状态。`}
+        confirmText={processing ? '结算中...' : '确认结算'}
+        tone="success"
+        disabled={processing}
+        onConfirm={handleSettlement}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </div>
   );
 };

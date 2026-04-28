@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { UserRole } from '../../types/auth';
 import { 
@@ -21,7 +21,8 @@ import type {
   ScoutSpecificData,
   PlayerSupplementData,
 } from './RegisterSteps';
-import { authApi } from '../../services/api';
+import { authApi, systemApi, unwrapApiResponse } from '../../services/api';
+import { useAuthStore } from '../../store';
 import { testAccounts } from './RegisterSteps/testAccounts';
 import type { TestAccountRole } from './RegisterSteps/testAccounts';
 import { Beaker, Sparkles, Shield, Users, Award, Brain, Building2, GraduationCap, Eye, Orbit } from 'lucide-react';
@@ -56,6 +57,7 @@ interface RegisterData {
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
+  const { setAuth } = useAuthStore();
   const [currentStep, setCurrentStep] = useState<RegisterStep>(1);
   const [registerData, setRegisterData] = useState<RegisterData>({
     phone: '',
@@ -71,6 +73,11 @@ const Register: React.FC = () => {
   };
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [publicSettings, setPublicSettings] = useState<{
+    siteName?: string;
+    allowRegistration: boolean;
+    maintenanceMode: boolean;
+  } | null>(null);
   const [selectedTestAccount, setSelectedTestAccount] = useState<TestAccountRole | null>(null);
   const [showTestPanel, setShowTestPanel] = useState(true); // 测试面板显示状态
   const [fillTrigger, setFillTrigger] = useState(0); // 触发重新渲染的计数器
@@ -85,8 +92,41 @@ const Register: React.FC = () => {
     return getStepTheme(registerData.role || null);
   }, [registerData.role]);
 
+  useEffect(() => {
+    let active = true;
+    systemApi.getPublicSettings()
+      .then((response) => {
+        const payload = unwrapApiResponse(response);
+        if (active && payload.success && payload.data) {
+          setPublicSettings(payload.data);
+        }
+      })
+      .catch(() => {
+        // 公共设置读取失败时不阻塞页面，后端注册接口仍会做最终校验。
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const getRegistrationBlockMessage = () => {
+    if (publicSettings?.maintenanceMode) {
+      return '平台维护中，暂时无法注册';
+    }
+    if (publicSettings?.allowRegistration === false) {
+      return '平台已关闭新用户注册';
+    }
+    return '';
+  };
+
   // 填充测试账号数据
   const fillTestData = async (role: TestAccountRole) => {
+    const blockedMessage = getRegistrationBlockMessage();
+    if (blockedMessage) {
+      setError(blockedMessage);
+      return;
+    }
+
     const account = testAccounts[role];
     setSelectedTestAccount(role);
     
@@ -111,6 +151,12 @@ const Register: React.FC = () => {
 
   // 步骤1完成：账号信息
   const handleStep1Complete = (data: { phone: string; password: string; code: string }) => {
+    const blockedMessage = getRegistrationBlockMessage();
+    if (blockedMessage) {
+      setError(blockedMessage);
+      return;
+    }
+
     updateRegisterData(prev => ({ ...prev, ...data }));
     setCurrentStep(2);
   };
@@ -162,6 +208,11 @@ const Register: React.FC = () => {
     supplementInfo?: PlayerSupplementData
   ) => {
     if (!registerData.role || !registerData.baseInfo) return;
+    const blockedMessage = getRegistrationBlockMessage();
+    if (blockedMessage) {
+      setError(blockedMessage);
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -287,9 +338,8 @@ const Register: React.FC = () => {
       if (resData?.success && resData?.data) {
         const { token, user } = resData.data;
 
-        // 保存登录状态
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user));
+        // 保存最小登录态，避免把手机号等完整用户对象写入 localStorage
+        setAuth(user, token);
 
         // 根据角色决定跳转
         const baseNickname = registerData.baseInfo.nickname || registerData.baseInfo.realName || '新用户';
@@ -325,6 +375,11 @@ const Register: React.FC = () => {
   // 跳过注册直接登录（用于"暂不填写"场景）
   const handleSkipAndLogin = async () => {
     if (!registerData.role || !registerData.baseInfo) return;
+    const blockedMessage = getRegistrationBlockMessage();
+    if (blockedMessage) {
+      setError(blockedMessage);
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -420,8 +475,7 @@ const Register: React.FC = () => {
 
       if (resData?.success && resData?.data) {
         const { token, user } = resData.data;
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user));
+        setAuth(user, token);
 
         const baseNickname = registerData.baseInfo.nickname || registerData.baseInfo.realName || '新用户';
         navigate('/', {

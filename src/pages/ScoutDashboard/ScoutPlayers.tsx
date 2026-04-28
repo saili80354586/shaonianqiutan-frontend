@@ -11,8 +11,9 @@ import {
   X,
   UserPlus
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { CardGridSkeleton } from '../../components/ui/loading';
-import { scoutApi } from '../../services/api';
+import { scoutApi, unwrapApiResponse } from '../../services/api';
 
 interface Player {
   id: string;
@@ -88,9 +89,10 @@ const ScoutPlayers: React.FC<ScoutPlayersProps> = ({ onPlayerClick, onWriteRepor
   const fetchFollowedPlayers = useCallback(async () => {
     try {
       const res = await scoutApi.getFollowedPlayers({ page_size: 100 });
-      if (res.success && res.data) {
+      const body = unwrapApiResponse(res);
+      if (body.success && body.data) {
         const followedIds = new Set<number>();
-        (res.data.list || []).forEach((f: any) => {
+        (body.data.list || []).forEach((f: any) => {
           followedIds.add(f.user_id);
         });
         setFollowedPlayerIds(followedIds);
@@ -118,8 +120,9 @@ const ScoutPlayers: React.FC<ScoutPlayersProps> = ({ onPlayerClick, onWriteRepor
       }
 
       const res = await scoutApi.searchPlayers(params);
-      if (res.success && res.data) {
-        const transformed = (res.data.list || []).map((p: any) =>
+      const body = unwrapApiResponse(res);
+      if (body.success && body.data) {
+        const transformed = (body.data.list || []).map((p: any) =>
           transformPlayer(p, followedIds.has(p.user_id || p.id))
         );
         setPlayers(transformed);
@@ -158,15 +161,27 @@ const ScoutPlayers: React.FC<ScoutPlayersProps> = ({ onPlayerClick, onWriteRepor
   const toggleFollow = async (player: Player) => {
     try {
       if (player.isFollowed) {
-        await scoutApi.unfollowPlayer(player.userId);
+        const res = await scoutApi.unfollowPlayer(player.userId);
+        const body = unwrapApiResponse(res);
+        if (!body.success) {
+          toast.error(body.error?.message || '取消关注失败');
+          return;
+        }
         setFollowedPlayerIds(prev => {
           const next = new Set(prev);
           next.delete(player.userId);
           return next;
         });
+        toast.success('已取消关注');
       } else {
-        await scoutApi.followPlayer(player.userId);
+        const res = await scoutApi.followPlayer(player.userId);
+        const body = unwrapApiResponse(res);
+        if (!body.success) {
+          toast.error(body.error?.message || '关注失败');
+          return;
+        }
         setFollowedPlayerIds(prev => new Set(prev).add(player.userId));
+        toast.success('关注成功');
       }
       // 更新本地球员状态
       setPlayers(prev => prev.map(p =>
@@ -176,7 +191,7 @@ const ScoutPlayers: React.FC<ScoutPlayersProps> = ({ onPlayerClick, onWriteRepor
       ));
     } catch (err: any) {
       console.error('操作失败:', err);
-      alert(err.message || '操作失败，请重试');
+      toast.error(err.message || '操作失败，请重试');
     }
   };
 
@@ -416,7 +431,6 @@ const ScoutPlayers: React.FC<ScoutPlayersProps> = ({ onPlayerClick, onWriteRepor
                   <td className="px-4 py-4 text-slate-300 text-sm">{player.position}</td>
                   <td className="px-4 py-4 text-slate-300 text-sm">{player.region}</td>
                   <td className="px-4 py-4 text-slate-300 text-sm truncate max-w-[150px]">{player.team || '-'}</td>
-                  <td className="px-4 py-4 text-slate-300 text-sm">{player.position || '-'}</td>
                   <td className="px-4 py-4">
                     <div className="flex items-center justify-end gap-2">
                       <button

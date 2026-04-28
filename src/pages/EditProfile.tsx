@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { userApi } from '../services/api';
+import { userApi, unwrapApiResponse } from '../services/api';
 import { useAuthStore } from '../store';
 import { Loading } from '../components';
 import type { Gender, Foot } from '../types';
@@ -69,8 +69,9 @@ const EditProfile: React.FC = () => {
       const fromRegister = location.state?.fromRegister as boolean | undefined;
       
       const response = await userApi.getProfile();
-      if (response.success && response.data) {
-        const profile = response.data;
+      const body = unwrapApiResponse(response);
+      if (body.success && body.data) {
+        const profile = body.data.user || body.data;
         const filledFields = new Set<string>();
         
         // 合并注册数据和后端数据，优先使用注册数据（如果是从注册流程来的）
@@ -278,8 +279,9 @@ const EditProfile: React.FC = () => {
         team: formData.club,
       };
       const response = await userApi.updateProfile(data);
-      if (response.success && response.data) {
-        updateUser(response.data);
+      const body = unwrapApiResponse(response);
+      if (body.success && body.data) {
+        updateUser(body.data.user || body.data);
         // 清除注册标记
         setFilledFromRegister(new Set());
         navigate(-1);

@@ -239,14 +239,14 @@ const IncomeStats: React.FC = () => {
   const pieData = useMemo(() => {
     // 优先使用后端返回的全量统计数据，避免分页数据导致饼图失真
     const text = summary.textIncome ?? incomeList
-      .filter(i => i.order_type === 'text')
+      .filter(i => i.order_type === 'basic' || i.order_type === 'text')
       .reduce((sum, i) => sum + i.net_income, 0);
     const video = summary.videoIncome ?? incomeList
       .filter(i => i.order_type === 'video' || i.order_type === 'pro')
       .reduce((sum, i) => sum + i.net_income, 0);
     return [
       { name: '文字版', value: text, color: '#3b82f6' },
-      { name: '视频版', value: video, color: '#a855f7' }
+      { name: '视频解析版', value: video, color: '#a855f7' }
     ].filter(d => d.value > 0);
   }, [incomeList, summary]);
 
@@ -265,19 +265,11 @@ const IncomeStats: React.FC = () => {
   }, [activeOrders]);
 
   const getOrderTypeBadge = (type?: OrderType) => {
-    if (type === 'video') {
+    if (type === 'video' || type === 'pro') {
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-500/10 text-purple-400">
           <Video className="w-3 h-3 mr-1" />
-          视频版
-        </span>
-      );
-    }
-    if (type === 'pro') {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-500/10 text-indigo-400">
-          <Video className="w-3 h-3 mr-1" />
-          文字+视频版
+          视频解析版
         </span>
       );
     }
@@ -298,7 +290,7 @@ const IncomeStats: React.FC = () => {
     const rows = incomeList.map(item => [
       item.order_no,
       item.player_name || '-',
-      item.order_type === 'video' ? '视频版' : item.order_type === 'pro' ? '文字+视频版' : '文字版',
+      item.order_type === 'video' || item.order_type === 'pro' ? '视频解析版' : '文字版',
       item.amount.toFixed(2),
       `${(item.commission * 100).toFixed(0)}%`,
       item.net_income.toFixed(2),
@@ -776,11 +768,11 @@ const IncomeStats: React.FC = () => {
         <div className="bg-[#1a1f2e] border border-gray-800 rounded-xl p-4">
           <p className="text-gray-400 text-sm mb-1">文字版订单</p>
           <p className="text-xl font-bold text-white">
-            {incomeList.filter(i => i.order_type === 'text').length} 笔
+            {incomeList.filter(i => i.order_type === 'basic' || i.order_type === 'text').length} 笔
           </p>
         </div>
         <div className="bg-[#1a1f2e] border border-gray-800 rounded-xl p-4">
-          <p className="text-gray-400 text-sm mb-1">视频版订单</p>
+          <p className="text-gray-400 text-sm mb-1">视频解析订单</p>
           <p className="text-xl font-bold text-white">
             {incomeList.filter(i => i.order_type === 'video' || i.order_type === 'pro').length} 笔
           </p>

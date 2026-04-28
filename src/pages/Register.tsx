@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { authApi } from '../services/api';
+import { authApi, unwrapApiResponse } from '../services/api';
 import { useAuthStore } from '../store/useAuthStore';
 import { Shield, Users, Award, Sparkles } from 'lucide-react';
 import FootballBackground, { backgroundStyles } from '../components/FootballBackground';
@@ -346,13 +346,13 @@ const Register: React.FC = () => {
         mother_athlete: formData.motherAthlete,
       });
 
-      if (response.success && response.data) {
-        const { token, user } = response.data;
-        localStorage.setItem('token', token);
+      const payload = unwrapApiResponse(response);
+      if (payload.success && payload.data) {
+        const { token, user } = payload.data;
         setAuth(user, token);
         setStep(5); // 5 = success
       } else {
-        setError(response.error || response.message || '注册失败');
+        setError(payload.error?.message || '注册失败');
       }
     } catch (err: any) {
       setError(err.message || '注册失败，请检查网络连接');
@@ -1353,6 +1353,7 @@ const Register: React.FC = () => {
             <p className="text-slate-500 text-sm">
               已有账户？<Link to="/login" className="text-emerald-600 font-semibold hover:underline">立即登录</Link>
             </p>
+          </div>
           </div>
         </div>
       </div>

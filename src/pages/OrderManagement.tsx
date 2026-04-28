@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { Order } from '../types';
-import { adminApi } from '../services/api';
+import { adminApi, unwrapApiResponse } from '../services/api';
 import { Loading } from '../components';
 import { Search, Filter, Eye, XCircle, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 
@@ -23,9 +23,10 @@ const OrderManagement: React.FC = () => {
   const loadOrders = async () => {
     setLoading(true);
     try {
-      const response = await adminApi.listOrders(currentPage, pageSize);
-      if (response.success && response.data) {
-        let filteredOrders = response.data.list;
+      const response = await adminApi.listOrders({ page: currentPage, pageSize });
+      const payload = unwrapApiResponse(response);
+      if (payload.success && payload.data) {
+        let filteredOrders = payload.data.list;
         
         // 状态筛选
         if (statusFilter !== 'all') {
@@ -54,7 +55,7 @@ const OrderManagement: React.FC = () => {
         }
         
         setOrders(filteredOrders);
-        setTotalOrders(response.data.total);
+        setTotalOrders(payload.data.total);
       }
     } catch (error) {
       console.error('加载订单列表失败', error);

@@ -170,7 +170,7 @@ const RatingWorkspace: React.FC<RatingWorkspaceProps> = ({ order, onComplete, on
       }
     }
     if (ratings.summary.length < 50) { toast.error('综合评价至少50字'); setActiveTab('summary'); return; }
-    if (order.order_type === 'video' && !clipVideo) { toast.error('请上传剪辑视频'); setActiveTab('video'); return; }
+    if ((order.order_type === 'video' || order.order_type === 'pro') && !clipVideo) { toast.error('请上传剪辑视频'); setActiveTab('video'); return; }
 
     setSubmitting(true);
     try {
@@ -179,7 +179,7 @@ const RatingWorkspace: React.FC<RatingWorkspaceProps> = ({ order, onComplete, on
       localStorage.removeItem(draftKey);
       toast.success('报告提交成功！'); onComplete();
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || '提交失败';
+      const msg = e?.response?.data?.error?.message || e?.response?.data?.message || e?.message || '提交失败';
       toast.error('提交失败: ' + msg);
       console.error('提交报告失败:', e);
     }
@@ -242,7 +242,7 @@ const RatingWorkspace: React.FC<RatingWorkspaceProps> = ({ order, onComplete, on
           <button onClick={onCancel} className="text-gray-600 hover:text-gray-900"><ChevronLeft className="w-5 h-5" /></button>
           <div>
             <h2 className="text-lg font-semibold">{order.player_name} - {order.player_position}分析</h2>
-            <p className="text-sm text-gray-500">{order.order_no} | {order.order_type === 'video' ? '视频版' : order.order_type === 'pro' ? '文字+视频版' : '文字版'}</p>
+            <p className="text-sm text-gray-500">{order.order_no} | {order.order_type === 'video' || order.order_type === 'pro' ? '视频解析版' : '文字版'}</p>
           </div>
         </div>
         <div className="flex items-center gap-4">

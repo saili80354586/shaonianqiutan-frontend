@@ -29,7 +29,7 @@ interface HistoryOrdersProps {
 
 interface FilterState {
   timeRange: 'all' | 'week' | 'month' | 'quarter' | 'year';
-  orderType: 'all' | 'text' | 'video';
+  orderType: 'all' | 'basic' | 'pro';
   status: 'all' | 'completed' | 'cancelled';
 }
 
@@ -93,11 +93,11 @@ const HistoryOrders: React.FC<HistoryOrdersProps> = ({ onViewReport }) => {
   const totalPages = Math.ceil(total / pageSize);
 
   const getOrderTypeBadge = (type: OrderType) => {
-    if (type === 'video') {
+    if (type === 'pro' || type === 'video') {
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
           <Video className="w-3 h-3 mr-1" />
-          视频版
+          视频解析版
         </span>
       );
     }
@@ -302,8 +302,8 @@ const HistoryOrders: React.FC<HistoryOrdersProps> = ({ onViewReport }) => {
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">全部类型</option>
-                <option value="text">文字版</option>
-                <option value="video">视频版</option>
+                <option value="basic">专业文字版</option>
+                <option value="pro">视频解析版</option>
               </select>
             </div>
             
@@ -425,17 +425,17 @@ const HistoryOrders: React.FC<HistoryOrdersProps> = ({ onViewReport }) => {
                         <button className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
                           <Download className="w-4 h-4" />
                           下载文档
-                        </button>
+                          </button>
                         <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 min-w-[160px]">
                           <button
-                            onClick={() => window.open(analystApi.getDownloadUrl(order.id, 'rating'), '_blank')}
+                            onClick={() => analystApi.downloadReportDoc(order.id, 'rating').catch(() => toast.error('下载失败，请稍后重试'))}
                             className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-t-lg flex items-center gap-2"
                           >
                             <FileText className="w-4 h-4 text-green-600" />
                             评分报告.md
                           </button>
                           <button
-                            onClick={() => window.open(analystApi.getDownloadUrl(order.id, 'player-info'), '_blank')}
+                            onClick={() => analystApi.downloadReportDoc(order.id, 'player-info').catch(() => toast.error('下载失败，请稍后重试'))}
                             className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-b-lg flex items-center gap-2"
                           >
                             <User className="w-4 h-4 text-blue-600" />
@@ -453,7 +453,7 @@ const HistoryOrders: React.FC<HistoryOrdersProps> = ({ onViewReport }) => {
                           <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 min-w-[200px]">
                             {order.report?.ai_report_url && (
                               <button
-                                onClick={() => window.open(analystApi.getAIReportUrl(order.id, 'report'), '_blank')}
+                                onClick={() => analystApi.downloadAIReport(order.id, 'report').catch(() => toast.error('下载失败，请稍后重试'))}
                                 className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-t-lg flex items-center gap-2"
                               >
                                 <FileText className="w-4 h-4 text-orange-600" />
@@ -462,7 +462,7 @@ const HistoryOrders: React.FC<HistoryOrdersProps> = ({ onViewReport }) => {
                             )}
                             {order.report?.ai_video_url && (
                               <button
-                                onClick={() => window.open(analystApi.getAIReportUrl(order.id, 'video'), '_blank')}
+                                onClick={() => analystApi.downloadAIReport(order.id, 'video').catch(() => toast.error('下载失败，请稍后重试'))}
                                 className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-b-lg flex items-center gap-2"
                               >
                                 <Video className="w-4 h-4 text-purple-600" />

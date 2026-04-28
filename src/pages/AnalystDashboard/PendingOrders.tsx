@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { analystApi } from '../../services/api';
-import type { Order } from '../../types';
+import type { Order, OrderType } from '../../types';
 import { toast } from 'sonner';
 import { 
   Clock, 
@@ -52,11 +52,11 @@ const PendingOrders: React.FC<PendingOrdersProps> = ({ onAccept }) => {
         toast.success('接单成功！');
         onAccept();
       } else {
-        toast.error(response.data?.data?.message || '接单失败');
+        toast.error(response.data?.error?.message || response.data?.data?.message || '接单失败');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('接单失败', error);
-      toast.error('接单失败，请重试');
+      toast.error(error?.response?.data?.error?.message || '接单失败，请重试');
     } finally {
       setProcessingId(null);
     }
@@ -77,22 +77,22 @@ const PendingOrders: React.FC<PendingOrdersProps> = ({ onAccept }) => {
         setRejectReason('');
         loadPendingOrders();
       } else {
-        toast.error(response.data?.message || '操作失败');
+        toast.error(response.data?.error?.message || response.data?.message || '操作失败');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('拒绝订单失败', error);
-      toast.error('操作失败，请重试');
+      toast.error(error?.response?.data?.error?.message || '操作失败，请重试');
     } finally {
       setProcessingId(null);
     }
   };
 
   const getOrderTypeBadge = (type: OrderType) => {
-    if (type === 'video') {
+    if (type === 'pro' || type === 'video') {
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
           <Video className="w-3 h-3 mr-1" />
-          视频版 ¥799
+          视频解析版 ¥799
         </span>
       );
     }

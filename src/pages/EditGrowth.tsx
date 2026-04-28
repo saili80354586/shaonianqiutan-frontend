@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { userApi } from '../services/api';
+import { userApi, unwrapApiResponse } from '../services/api';
 import { useAuthStore } from '../store';
 import { Loading } from '../components';
 import type { GrowthRecord } from '../types';
@@ -54,8 +54,10 @@ const EditGrowth: React.FC = () => {
   const loadGrowthRecords = async () => {
     try {
       const response = await userApi.getGrowthRecords();
-      if (response.success && response.data) {
-        setRecords(response.data.sort((a: GrowthRecord, b: GrowthRecord) =>
+      const payload = unwrapApiResponse(response);
+      const data = payload.data?.records || payload.data;
+      if (payload.success && Array.isArray(data)) {
+        setRecords(data.sort((a: GrowthRecord, b: GrowthRecord) =>
           new Date(b.date).getTime() - new Date(a.date).getTime()
         ));
       }
@@ -237,7 +239,8 @@ const EditGrowth: React.FC = () => {
       // 过滤掉空标题的记录
       const validRecords = records.filter(r => r.title.trim());
       const response = await userApi.saveGrowthRecords(validRecords);
-      if (response.success) {
+      const payload = unwrapApiResponse(response);
+      if (payload.success) {
         navigate(`/profile/${user?.id}`);
       }
     } catch (error) {

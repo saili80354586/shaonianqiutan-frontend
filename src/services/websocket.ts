@@ -46,8 +46,21 @@ class WebSocketService {
     // 判断环境使用不同协议
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = import.meta.env.VITE_WS_URL || window.location.host;
-    this.url = `${protocol}//${host}/ws?token=${token}`;
+    const nextUrl = `${protocol}//${host}/ws?token=${token}`;
 
+    if (
+      this.ws &&
+      this.url === nextUrl &&
+      (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)
+    ) {
+      return;
+    }
+
+    this.clearReconnectTimer();
+    this.stopHeartbeat();
+    this.closeCurrentSocket(1000, 'Reconnect');
+
+    this.url = nextUrl;
     this.isManualClose = false;
     this.createConnection();
   }
@@ -185,6 +198,13 @@ class WebSocketService {
     }, delay);
   }
 
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+
   /**
    * 启动心跳
    */
@@ -235,18 +255,21 @@ class WebSocketService {
   disconnect(): void {
     this.isManualClose = true;
     this.stopHeartbeat();
-
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-
-    if (this.ws) {
-      this.ws.close(1000, 'Manual close');
-      this.ws = null;
-    }
+    this.clearReconnectTimer();
+    this.closeCurrentSocket(1000, 'Manual close');
 
     console.log('WebSocket: 已断开连接');
+  }
+
+  private closeCurrentSocket(code: number, reason: string): void {
+    if (this.ws) {
+      this.ws.onopen = null;
+      this.ws.onmessage = null;
+      this.ws.onerror = null;
+      this.ws.onclose = null;
+      this.ws.close(code, reason);
+      this.ws = null;
+    }
   }
 
   /**

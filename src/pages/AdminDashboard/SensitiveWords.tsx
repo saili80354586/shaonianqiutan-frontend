@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { adminApi } from '../../services/api';
 import { Shield, Plus, Trash2, Edit2, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import AdminConfirmDialog from './components/AdminConfirmDialog';
 
 interface SensitiveWord {
   id: number;
@@ -24,6 +26,7 @@ const SensitiveWords: React.FC = () => {
   const [editingWord, setEditingWord] = useState<SensitiveWord | null>(null);
   const [form, setForm] = useState({ word: '', category: '', level: 1, enabled: true });
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<SensitiveWord | null>(null);
 
   const fetchWords = async () => {
     try {
@@ -62,12 +65,14 @@ const SensitiveWords: React.FC = () => {
     finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('确定删除该敏感词？')) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await adminApi.deleteSensitiveWord(id);
+      await adminApi.deleteSensitiveWord(deleteTarget.id);
+      toast.success('敏感词已删除');
+      setDeleteTarget(null);
       fetchWords();
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); toast.error('删除敏感词失败'); }
   };
 
   const toggleEnable = async (w: SensitiveWord) => {
@@ -118,7 +123,7 @@ const SensitiveWords: React.FC = () => {
                 </td>
                 <td className="px-4 py-3 text-right flex gap-2 justify-end">
                   <button onClick={() => openEdit(w)} className="text-slate-400 hover:text-emerald-400 transition-colors"><Edit2 className="w-4 h-4" /></button>
-                  <button onClick={() => handleDelete(w.id)} className="text-slate-400 hover:text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => setDeleteTarget(w)} className="text-slate-400 hover:text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
                 </td>
               </tr>
             ))}
@@ -157,6 +162,15 @@ const SensitiveWords: React.FC = () => {
           </div>
         </div>
       )}
+      <AdminConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="删除敏感词"
+        description={`确定删除「${deleteTarget?.word || ''}」吗？删除后内容审核将不再匹配该词。`}
+        confirmText="删除"
+        tone="danger"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

@@ -594,26 +594,22 @@ export const OrdersModule: React.FC = () => {
                   </h3>
                   <div className="flex flex-wrap gap-3">
                     {selectedOrder.aiReportUrl && (
-                      <a
-                        href={orderApi.getAIReportDownloadUrl(selectedOrder.numericId, 'report')}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => orderApi.downloadAIReport(selectedOrder.numericId, 'report').catch(() => alert('下载失败，请稍后重试'))}
                         className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 rounded-lg transition-colors"
                       >
                         <FileText size={16} />
                         文字报告
-                      </a>
+                      </button>
                     )}
                     {selectedOrder.aiVideoUrl && (
-                      <a
-                        href={orderApi.getAIReportDownloadUrl(selectedOrder.numericId, 'video')}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => orderApi.downloadAIReport(selectedOrder.numericId, 'video').catch(() => alert('下载失败，请稍后重试'))}
                         className="flex items-center gap-2 px-4 py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 rounded-lg transition-colors"
                       >
                         <Video size={16} />
                         视频分析
-                      </a>
+                      </button>
                     )}
                   </div>
                 </div>

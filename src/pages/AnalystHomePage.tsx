@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { analystApi } from '../services/api';
+import { analystApi, unwrapApiResponse } from '../services/api';
 import { Loading } from '../components/ui/loading';
 import { LazyImage } from '../components';
 import SocialFeed, { CreatePostModal } from './ScoutMap/SocialFeed';
@@ -133,12 +133,13 @@ const AnalystHomePage: React.FC = () => {
         contact: inquiryForm.contact.trim(),
         content: inquiryForm.content.trim(),
       });
-      if (res.data?.success || res.success) {
+      const payload = unwrapApiResponse(res);
+      if (payload.success) {
         toast.success('咨询意向已提交，分析师将尽快与您联系');
         setInquiryOpen(false);
         setInquiryForm({ name: '', contact: '', content: '' });
       } else {
-        toast.error(res.data?.message || '提交失败，请重试');
+        toast.error(payload.error?.message || '提交失败，请重试');
       }
     } catch (err: any) {
       toast.error(err.response?.data?.message || '提交失败，请重试');

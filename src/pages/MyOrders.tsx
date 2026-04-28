@@ -14,9 +14,9 @@ const MyOrders: React.FC = () => {
 
   const loadOrders = async () => {
     try {
-      const response = await orderApi.list();
-      if (response.success && response.data) {
-        setOrders(response.data.orders);
+      const response = await orderApi.getOrders();
+      if (response.data?.success && response.data?.data) {
+        setOrders(response.data.data.list || []);
       }
     } catch (error) {
       console.error('加载订单失败', error);
@@ -28,6 +28,12 @@ const MyOrders: React.FC = () => {
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'paid':
+        return 'bg-blue-100 text-blue-800';
+      case 'uploaded':
+      case 'assigned':
+      case 'processing':
+        return 'bg-purple-100 text-purple-800';
+      case 'completed':
         return 'bg-green-100 text-green-800';
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
@@ -43,7 +49,15 @@ const MyOrders: React.FC = () => {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'paid':
-        return '已支付';
+        return '待上传';
+      case 'uploaded':
+        return '待分配';
+      case 'assigned':
+        return '已派单';
+      case 'processing':
+        return '分析中';
+      case 'completed':
+        return '已完成';
       case 'pending':
         return '待支付';
       case 'cancelled':
@@ -73,7 +87,10 @@ const MyOrders: React.FC = () => {
       {/* Orders List */}
       {orders.length > 0 ? (
         <div className="space-y-4">
-          {orders.map((order) => (
+          {orders.map((order) => {
+            const reportId = order.report?.id || order.report_id;
+
+            return (
             <div key={order.id} className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex-1">
@@ -107,16 +124,24 @@ const MyOrders: React.FC = () => {
                         立即支付
                       </Link>
                     )}
-                    {order.status === 'paid' && order.report && (
+                    {order.status === 'paid' && !order.report && (
                       <Link
-                        to={`/reports/${order.report.id}`}
+                        to={`/order/${order.id}/upload`}
+                        className="btn-primary"
+                      >
+                        上传资料
+                      </Link>
+                    )}
+                    {order.status === 'completed' && reportId && (
+                      <Link
+                        to={`/reports/${reportId}`}
                         className="btn-primary"
                       >
                         查看报告
                       </Link>
                     )}
                     <Link
-                      to={`/order/${order.id}/confirm`}
+                      to={`/order/${order.id}`}
                       className="btn-secondary"
                     >
                       详情
@@ -125,7 +150,8 @@ const MyOrders: React.FC = () => {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="bg-white rounded-xl shadow-md border border-gray-200 p-12 text-center">

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { userApi } from '../services/api';
+import { userApi, unwrapApiResponse } from '../services/api';
 import { useAuthStore } from '../store';
 import { Loading } from '../components';
 import type { Gender, Foot } from '../types';
@@ -115,8 +115,9 @@ const EditProfileEnhanced: React.FC = () => {
   const loadProfile = async () => {
     try {
       const response = await userApi.getProfile();
-      if (response.success && response.data) {
-        const profile = response.data;
+      const body = unwrapApiResponse(response);
+      if (body.success && body.data) {
+        const profile = body.data.user || body.data;
         const playerProfile = profile.roles?.find((r: any) => r.type === 'player')?.profile;
         
         // 设置基础信息
@@ -268,9 +269,10 @@ const EditProfileEnhanced: React.FC = () => {
       };
       
       const response = await userApi.updateProfile(profileData);
-      if (response.success) {
+      const body = unwrapApiResponse(response);
+      if (body.success) {
         setSuccess(true);
-        updateUser(response.data);
+        updateUser(body.data?.user || body.data || profileData);
         setTimeout(() => setSuccess(false), 3000);
       }
     } catch (error) {

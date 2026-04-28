@@ -128,22 +128,14 @@ const OrderDetail: React.FC = () => {
 
     try {
       setCancelling(true);
-      // 调用取消订单API - 由于api.ts中暂无此方法,使用axios直接调用
-      const token = localStorage.getItem('token');
-      await fetch(`/api/orders/${order.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      await orderApi.cancelOrder(order.id);
 
       // 刷新订单数据
       await loadOrder(order.id.toString());
       alert('订单已取消');
-    } catch (error) {
+    } catch (error: any) {
       console.error('取消订单失败', error);
-      alert('取消订单失败,请重试');
+      alert(error?.response?.data?.error?.message || '取消订单失败,请重试');
     } finally {
       setCancelling(false);
     }
@@ -163,18 +155,20 @@ const OrderDetail: React.FC = () => {
   };
 
   const handleDownloadReport = async () => {
-    if (!order?.report) return;
+    const reportId = order?.report?.id || order?.report_id;
+    if (!reportId) return;
 
     try {
-      const response = await reportApi.download(order.report.id.toString());
+      const response = await reportApi.downloadReport(reportId);
       // 创建下载链接
-      const url = window.URL.createObjectURL(new Blob([response as any]));
+      const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `球探报告_${order.report.title}.pdf`);
+      link.setAttribute('download', `球探报告_${order?.report?.title || reportId}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('下载报告失败', error);
       alert('下载报告失败,请重试');
@@ -228,6 +222,7 @@ const OrderDetail: React.FC = () => {
 
   const currentStep = getCurrentStepIndex();
   const status = statusConfig[order.status] || statusConfig.pending;
+  const reportId = order.report?.id || order.report_id;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-secondary to-primary pt-[72px] pb-10">
@@ -385,7 +380,7 @@ const OrderDetail: React.FC = () => {
             )}
 
             {/* 报告预览卡片 - 订单完成后显示 */}
-            {order.status === 'completed' && order.report && (
+            {order.status === 'completed' && reportId && (
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
                 <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                   <FileText className="w-5 h-5 text-accent" />
@@ -395,14 +390,14 @@ const OrderDetail: React.FC = () => {
                 <div className="space-y-4">
                   <div className="p-4 bg-gradient-to-r from-accent/20 to-accent/5 rounded-xl border border-accent/20">
                     <h3 className="text-lg font-semibold text-white mb-2">
-                      {order.report.title || `${order.report.player_name} 的技术分析报告`}
+                      {order.report?.title || `${order.player_name || '球员'} 的技术分析报告`}
                     </h3>
                     <p className="text-white/70 text-sm line-clamp-2">
-                      {order.report.description || order.report.content?.substring(0, 200)}
+                      {order.report?.description || order.report?.content?.substring(0, 200) || '分析报告已完成，可查看完整报告。'}
                     </p>
                   </div>
 
-                  {order.report.rating && (
+                  {order.report?.rating && (
                     <div className="flex items-center gap-4 p-4 bg-white/5 rounded-xl">
                       <div className="text-center">
                         <p className="text-4xl font-bold text-accent">{order.report.rating}</p>
@@ -410,16 +405,16 @@ const OrderDetail: React.FC = () => {
                       </div>
                       <div className="flex-1">
                         <div className="grid grid-cols-2 gap-2 text-sm">
-                          {order.report.player_position && (
+                          {(order.report?.player_position || order.player_position) && (
                             <div className="text-white/80">
                               <span className="text-white/60">位置: </span>
-                              {order.report.player_position}
+                              {order.report?.player_position || order.player_position}
                             </div>
                           )}
-                          {order.report.player_name && (
+                          {(order.report?.player_name || order.player_name) && (
                             <div className="text-white/80">
                               <span className="text-white/60">球员: </span>
-                              {order.report.player_name}
+                              {order.report?.player_name || order.player_name}
                             </div>
                           )}
                         </div>
@@ -429,17 +424,18 @@ const OrderDetail: React.FC = () => {
 
                   <div className="flex gap-3">
                     <Link
-                      to={`/reports/${order.report.id}`}
+                      to={`/reports/${reportId}`}
                       className="flex-1 py-3 bg-accent text-white rounded-xl font-medium text-center hover:bg-accent-light transition-colors"
                     >
                       查看完整报告
                     </Link>
                     <button
                       onClick={handleDownloadReport}
-                      className="flex-1 py-3 bg-white/10 text-white rounded-xl font-medium hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
+                      disabled={!order.report?.pdf_url}
+                      className="flex-1 py-3 bg-white/10 text-white rounded-xl font-medium hover:bg-white/20 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Download size={18} />
-                      下载PDF
+                      {order.report?.pdf_url ? '下载PDF' : '暂无PDF文件'}
                     </button>
                   </div>
                 </div>
@@ -564,9 +560,9 @@ const OrderDetail: React.FC = () => {
               {/* 已完成状态 */}
               {order.status === 'completed' && (
                 <>
-                  {order.report && (
+                  {reportId && (
                     <Link
-                      to={`/reports/${order.report.id}`}
+                      to={`/reports/${reportId}`}
                       className="w-full py-3 bg-gradient-to-r from-accent to-accent-light text-white rounded-xl font-medium hover:shadow-lg hover:shadow-accent/30 transition-all flex items-center justify-center gap-2"
                     >
                       <FileText size={18} />

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { adminApi } from '../../services/api';
 import { HelpCircle, Plus, Trash2, Edit2, Loader2, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import AdminConfirmDialog from './components/AdminConfirmDialog';
 
 interface FAQ {
   id: number;
@@ -21,6 +23,7 @@ const FAQs: React.FC = () => {
   const [form, setForm] = useState({ question: '', answer: '', category: 'general', sort_order: 0, is_hot: false });
   const [saving, setSaving] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<FAQ | null>(null);
 
   const fetchItems = async () => {
     try {
@@ -59,12 +62,14 @@ const FAQs: React.FC = () => {
     finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('确定删除该FAQ？')) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await adminApi.deleteFAQ(id);
+      await adminApi.deleteFAQ(deleteTarget.id);
+      toast.success('FAQ 已删除');
+      setDeleteTarget(null);
       fetchItems();
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); toast.error('删除 FAQ 失败'); }
   };
 
   const categories: Record<string, string> = { general: '通用', player: '球员', parent: '家长', analyst: '分析师', club: '俱乐部', payment: '支付' };
@@ -105,7 +110,7 @@ const FAQs: React.FC = () => {
                 <p className="text-slate-300 text-sm mt-3 leading-relaxed">{item.answer}</p>
                 <div className="flex gap-2 mt-3 justify-end">
                   <button onClick={() => openEdit(item)} className="text-slate-400 hover:text-emerald-400 transition-colors text-xs flex items-center gap-1"><Edit2 className="w-3 h-3" /> 编辑</button>
-                  <button onClick={() => handleDelete(item.id)} className="text-slate-400 hover:text-red-400 transition-colors text-xs flex items-center gap-1"><Trash2 className="w-3 h-3" /> 删除</button>
+                  <button onClick={() => setDeleteTarget(item)} className="text-slate-400 hover:text-red-400 transition-colors text-xs flex items-center gap-1"><Trash2 className="w-3 h-3" /> 删除</button>
                 </div>
               </div>
             )}
@@ -152,6 +157,15 @@ const FAQs: React.FC = () => {
           </div>
         </div>
       )}
+      <AdminConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="删除 FAQ"
+        description={`确定删除「${deleteTarget?.question || ''}」吗？前台帮助中心将不再展示该内容。`}
+        confirmText="删除"
+        tone="danger"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

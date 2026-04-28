@@ -282,7 +282,7 @@ export function NotificationCenter({ onUnreadChange }: NotificationCenterProps) 
         if (tab.key === '比赛')
           return ['match_summary_created', 'match_player_reminder', 'match_coach_reminder', 'match_summary_complete'].includes(n.type) && !n.is_read;
         if (tab.key === '系统')
-          return ['system', 'order', 'report', 'task', 'inquiry', 'invitation'].includes(n.type) && !n.is_read;
+          return ['system', 'order', 'report', 'task', 'inquiry', 'invitation', 'trial_invite', 'scout_report'].includes(n.type) && !n.is_read;
         return false;
       }).length;
     });
@@ -316,7 +316,10 @@ export function NotificationCenter({ onUnreadChange }: NotificationCenterProps) 
       case 'match_summary_complete':
         return <Trophy size={14} className="text-amber-400" />;
       case 'invitation':
+      case 'trial_invite':
         return <UserPlus size={14} className="text-emerald-400" />;
+      case 'scout_report':
+        return <FileText size={14} className="text-cyan-400" />;
       default:
         return <Bell size={14} className="text-slate-400" />;
     }
@@ -347,7 +350,10 @@ export function NotificationCenter({ onUnreadChange }: NotificationCenterProps) 
       case 'match_summary_complete':
         return 'bg-amber-500/15 border-amber-500/20';
       case 'invitation':
+      case 'trial_invite':
         return 'bg-emerald-500/15 border-emerald-500/20';
+      case 'scout_report':
+        return 'bg-cyan-500/15 border-cyan-500/20';
       default:
         return 'bg-slate-500/15 border-slate-500/20';
     }

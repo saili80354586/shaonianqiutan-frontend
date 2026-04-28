@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Save, Edit3, Search, Users, MapPin, Shield, CheckCircle } from 'lucide-react';
-import toast from 'react-hot-toast';
-import { scoutApi } from '../../services/api';
+import { ArrowLeft, Save, Edit3, MapPin, Shield } from 'lucide-react';
+import { toast } from 'sonner';
+import { scoutApi, unwrapApiResponse } from '../../services/api';
+import {
+  buildScoutProfileUpdatePayload,
+  mapScoutProfileResponse,
+} from './scoutData';
 
 // 球探位置偏好选项
 const positionOptions = [
@@ -34,19 +38,11 @@ const regionOptions = [
   { value: '海外', label: '海外' },
 ];
 
-// 机构类型
-const orgTypeOptions = [
-  { value: '自由球探', label: '自由球探' },
-  { value: '俱乐部球探', label: '俱乐部球探' },
-  { value: '经纪人', label: '经纪人' },
-  { value: '球探机构', label: '球探机构' },
-];
-
 interface ScoutProfileProps {
-  onBack: () => void;
+  onBack?: () => void;
 }
 
-const ScoutProfile: React.FC<ScoutTableProps> = ({ onBack }) => {
+const ScoutProfile: React.FC<ScoutProfileProps> = ({ onBack }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -70,20 +66,23 @@ const ScoutProfile: React.FC<ScoutTableProps> = ({ onBack }) => {
     try {
       setLoading(true);
       const res = await scoutApi.getProfile();
-      if (res.data?.success && res.data?.data) {
-        const d = res.data.data;
-        setAvatar(d.avatar || '');
-        setName(d.name || '');
-        setGender(d.gender || '');
-        setPhone(d.phone || '');
-        setProvince(d.province || '');
-        setCity(d.city || '');
-        setScoutingExperience(d.scoutingExperience || '');
-        setSpecialties(typeof d.specialties === 'string' ? JSON.parse(d.specialties || '[]') : (d.specialties || []));
-        setPreferredAgeGroups(typeof d.preferredAgeGroups === 'string' ? JSON.parse(d.preferredAgeGroups || '[]') : (d.preferredAgeGroups || []));
-        setBio(d.bio || '');
-        setCurrentOrganization(d.currentOrganization || '');
-        setVerified(d.verified || false);
+      const body = unwrapApiResponse(res);
+      if (body.success && body.data) {
+        const d = mapScoutProfileResponse(body.data);
+        setAvatar(d.avatar);
+        setName(d.name);
+        setGender(d.gender);
+        setPhone(d.phone);
+        setProvince(d.province);
+        setCity(d.city);
+        setScoutingExperience(d.scoutingExperience);
+        setSpecialties(d.specialties);
+        setPreferredAgeGroups(d.preferredAgeGroups);
+        setBio(d.bio);
+        setCurrentOrganization(d.currentOrganization);
+        setVerified(d.verified);
+      } else {
+        toast.error(body.error?.message || '加载资料失败');
       }
     } catch { toast.error('加载资料失败'); }
     finally { setLoading(false); }
@@ -92,17 +91,20 @@ const ScoutProfile: React.FC<ScoutTableProps> = ({ onBack }) => {
   const handleSave = async () => {
     try {
       setSaving(true);
-      const res = await scoutApi.updateProfile({
+      const res = await scoutApi.updateProfile(buildScoutProfileUpdatePayload({
         scoutingExperience,
-        specialties: JSON.stringify(specialties),
-        preferredAgeGroups: JSON.stringify(preferredAgeGroups),
         bio,
+        specialties,
+        preferredAgeGroups,
         currentOrganization,
-      });
-      if (res.data?.success) {
+      }));
+      const body = unwrapApiResponse(res);
+      if (body.success) {
         toast.success('保存成功');
         setIsEditing(false);
         await loadProfile();
+      } else {
+        toast.error(body.error?.message || '保存失败');
       }
     } catch { toast.error('保存失败'); }
     finally { setSaving(false); }
@@ -113,7 +115,7 @@ const ScoutProfile: React.FC<ScoutTableProps> = ({ onBack }) => {
   };
 
   const toggleAgeGroup = (ag: string) => {
-    setPreferredAgeGroups(prev => prev.includes(ag) | prev.filter(a => a !== ag));
+    setPreferredAgeGroups(prev => prev.includes(ag) ? prev.filter(a => a !== ag) : [...prev, ag]);
   };
 
   if (loading) {
@@ -128,9 +130,11 @@ const ScoutProfile: React.FC<ScoutTableProps> = ({ onBack }) => {
     <div className="max-w-2xl mx-auto">
       {/* 头部 */}
       <div className="flex items-center gap-4 mb-6">
-        <button onClick={onBack} className="p-2 hover:bg-gray-800 rounded-lg">
-          <ArrowLeft className="w-5 h-5 text-gray-400" />
-        </button>
+        {onBack && (
+          <button onClick={onBack} className="p-2 hover:bg-gray-800 rounded-lg">
+            <ArrowLeft className="w-5 h-5 text-gray-400" />
+          </button>
+        )}
         <h1 className="text-xl font-bold text-white">个人资料</h1>
         <div className="flex-1" />
         {isEditing ? (

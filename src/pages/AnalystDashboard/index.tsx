@@ -149,8 +149,8 @@ const AnalystDashboard: React.FC = () => {
   };
 
   const getOrderTypeBadge = (type: OrderType) => {
-    const config = type === 'video' 
-      ? { bg: 'bg-purple-500/20', text: 'text-purple-300', border: 'border-purple-500/30', icon: Video, label: '视频版' }
+    const config = type === 'pro' || type === 'video'
+      ? { bg: 'bg-purple-500/20', text: 'text-purple-300', border: 'border-purple-500/30', icon: Video, label: '视频解析版' }
       : { bg: 'bg-blue-500/20', text: 'text-blue-300', border: 'border-blue-500/30', icon: FileText, label: '文字版' };
     const Icon = config.icon;
     return (

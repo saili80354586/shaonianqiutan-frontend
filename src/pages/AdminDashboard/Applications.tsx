@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { analystApplicationApi } from '../../services/api';
 import type { AnalystApplication } from '../../types';
 import { Loading } from '../../components';
 import { FileText, CheckCircle, XCircle, Clock, User, Phone, Mail } from 'lucide-react';
+import AdminConfirmDialog from './components/AdminConfirmDialog';
 
 const Applications: React.FC = () => {
   const [applications, setApplications] = useState<AnalystApplication[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reviewAction, setReviewAction] = useState<{ id: number; action: 'approved' | 'rejected' } | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   useEffect(() => {
     loadApplications();
@@ -26,24 +30,27 @@ const Applications: React.FC = () => {
     }
   };
 
-  const handleApprove = async (id: number) => {
-    if (!window.confirm('确定批准这个分析师申请吗？')) return;
-    try {
-      await analystApplicationApi.reviewApplication(id.toString(), 'approved', '');
-      setApplications(applications.filter(a => a.id !== id));
-    } catch (error) {
-      console.error('批准失败', error);
-    }
+  const handleApprove = (id: number) => {
+    setReviewAction({ id, action: 'approved' });
   };
 
-  const handleReject = async (id: number) => {
-    const reason = window.prompt('请输入拒绝原因：');
-    if (reason === null) return;
+  const handleReject = (id: number) => {
+    setRejectReason('');
+    setReviewAction({ id, action: 'rejected' });
+  };
+
+  const confirmReview = async () => {
+    if (!reviewAction) return;
     try {
-      await analystApplicationApi.reviewApplication(id.toString(), 'rejected', reason || '未通过审核');
-      setApplications(applications.filter(a => a.id !== id));
+      const remark = reviewAction.action === 'rejected' ? (rejectReason.trim() || '未通过审核') : '';
+      await analystApplicationApi.reviewApplication(reviewAction.id.toString(), reviewAction.action, remark);
+      setApplications(applications.filter(a => a.id !== reviewAction.id));
+      toast.success(reviewAction.action === 'approved' ? '申请已批准' : '申请已拒绝');
+      setReviewAction(null);
+      setRejectReason('');
     } catch (error) {
-      console.error('拒绝失败', error);
+      console.error('审核失败', error);
+      toast.error('审核操作失败');
     }
   };
 
@@ -130,6 +137,27 @@ const Applications: React.FC = () => {
           <p className="text-slate-400">暂无待审核申请</p>
         </div>
       )}
+      <AdminConfirmDialog
+        open={Boolean(reviewAction)}
+        title={reviewAction?.action === 'approved' ? '批准分析师申请' : '拒绝分析师申请'}
+        description={reviewAction?.action === 'approved' ? '确认批准该分析师申请？批准后该用户将获得分析师权限。' : '确认拒绝该分析师申请？拒绝原因会记录在审核结果中。'}
+        confirmText={reviewAction?.action === 'approved' ? '批准' : '拒绝'}
+        tone={reviewAction?.action === 'approved' ? 'success' : 'danger'}
+        onConfirm={confirmReview}
+        onCancel={() => {
+          setReviewAction(null);
+          setRejectReason('');
+        }}
+      >
+        {reviewAction?.action === 'rejected' && (
+          <textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            className="min-h-24 w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-red-500/50 focus:outline-none"
+            placeholder="请输入拒绝原因，留空则使用默认原因"
+          />
+        )}
+      </AdminConfirmDialog>
     </div>
   );
 };

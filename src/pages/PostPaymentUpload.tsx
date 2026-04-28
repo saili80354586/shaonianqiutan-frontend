@@ -154,21 +154,21 @@ const PostPaymentUpload: React.FC = () => {
   const loadOrder = async () => {
     try {
       const res = await orderApi.getOrderDetail(Number(orderId));
-      const data = res.data?.data || res.data;
-      if (data) {
-        setOrder(data);
-        if (data.player_name) setPlayerName(data.player_name);
-        if (data.match_name) setMatchName(data.match_name);
-        if (data.player_position) setPlayerPosition(data.player_position);
-        if (data.jersey_color) setJerseyColor(data.jersey_color);
-        if (data.jersey_number) setJerseyNumber(String(data.jersey_number));
-        if (data.remark) setNotes(data.remark);
-        if (data.video_url && data.status !== 'pending') setSubmitSuccess(true);
-      } else {
-        setOrder({ id: orderId, status: 'paid', order_type: 'basic', amount: 299 });
+      const loadedOrder = res.data?.data?.order || res.data?.order;
+      if (!res.data?.success || !loadedOrder?.id) {
+        throw new Error(res.data?.error?.message || '订单加载失败');
       }
-    } catch {
-      setOrder({ id: orderId, status: 'paid', order_type: 'basic', amount: 299 });
+      setOrder(loadedOrder);
+      if (loadedOrder.player_name) setPlayerName(loadedOrder.player_name);
+      if (loadedOrder.match_name) setMatchName(loadedOrder.match_name);
+      if (loadedOrder.player_position) setPlayerPosition(loadedOrder.player_position);
+      if (loadedOrder.jersey_color) setJerseyColor(loadedOrder.jersey_color);
+      if (loadedOrder.jersey_number) setJerseyNumber(String(loadedOrder.jersey_number));
+      if (loadedOrder.remark) setNotes(loadedOrder.remark);
+      if (loadedOrder.video_url && loadedOrder.status !== 'pending') setSubmitSuccess(true);
+    } catch (error: any) {
+      alert(error?.response?.data?.error?.message || error?.message || '订单加载失败，请返回用户中心重试');
+      navigate('/user-dashboard');
     } finally {
       setLoadingOrder(false);
     }
@@ -291,7 +291,7 @@ const PostPaymentUpload: React.FC = () => {
       localStorage.removeItem(draftKey);
       setSubmitSuccess(true);
     } catch (error: any) {
-      alert(error?.response?.data?.message || '提交失败');
+      alert(error?.response?.data?.error?.message || error?.response?.data?.message || '提交失败');
       setVideos(prev => prev.map(v => v.status === 'uploading' ? { ...v, status: 'error', error: '上传失败' } : v));
     } finally {
       setIsSubmitting(false);

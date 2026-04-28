@@ -14,9 +14,10 @@ const ReportList: React.FC = () => {
 
   const loadReports = async () => {
     try {
-      const response = await reportApi.list(1, 50);
-      if (response.success && response.data) {
-        setReports(response.data.data);
+      const response = await reportApi.getMyReports({ page: 1, pageSize: 50 });
+      if (response.data?.success) {
+        const result = response.data.data?.data || response.data.data || {};
+        setReports(result.list || []);
       }
     } catch (error) {
       console.error('加载报告失败', error);
@@ -42,7 +43,9 @@ const ReportList: React.FC = () => {
                   className="w-full h-48 object-cover rounded-lg mb-4"
                 />
               )}
-              <h3 className="text-xl font-semibold mb-2 text-gray-900">{report.title}</h3>
+              <h3 className="text-xl font-semibold mb-2 text-gray-900">
+                {report.title || `${report.player_name || '球员'} - 球探报告`}
+              </h3>
               <div className="flex items-center gap-2 mb-3 text-sm text-gray-600">
                 <span>{report.player_name}</span>
                 {report.player_birth_date && (
@@ -71,7 +74,7 @@ const ReportList: React.FC = () => {
                 </div>
               )}
               <div className="flex items-center justify-between mt-4">
-                <span className="text-xl font-bold text-primary">¥{report.price}</span>
+                <span className="text-xl font-bold text-primary">¥{report.price || 0}</span>
                 <Link to={`/reports/${report.id}`} className="btn-primary">
                   查看详情
                 </Link>

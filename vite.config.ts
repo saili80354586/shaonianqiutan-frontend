@@ -20,6 +20,12 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/ws': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+      },
     },
   },
   build: {
@@ -42,7 +48,7 @@ export default defineConfig({
               return 'chart-vendor'
             }
             // 工具库
-            if (id.includes('axios') || id.includes('dayjs') || id.includes('query-string') || id.includes('zustand')) {
+            if (id.includes('axios') || id.includes('zustand')) {
               return 'utils-vendor'
             }
           }
@@ -92,7 +98,6 @@ export default defineConfig({
       'lucide-react',
       'echarts',
       'axios',
-      'dayjs',
       'clsx',
       'tailwind-merge',
       'zustand',

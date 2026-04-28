@@ -46,8 +46,9 @@ export const TrialInviteModal: React.FC<TrialInviteModalProps> = ({ playerId, pl
         toast.error(res.data?.message || '发送失败');
       }
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg || '发送失败，请稍后重试');
+      const msg = (err as { response?: { data?: { error?: { message?: string }; message?: string } } })?.response?.data;
+      const errorMessage = msg?.error?.message || msg?.message;
+      toast.error(errorMessage || '发送失败，请稍后重试');
     } finally {
       setSending(false);
     }

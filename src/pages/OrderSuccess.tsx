@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link, useParams } from 'react-router-dom';
 import { CheckCircle, FileText, Clock, ArrowRight, Home, Loader2, Upload, UserCheck } from 'lucide-react';
 import { orderApi } from '../services/api';
 
@@ -90,9 +90,11 @@ function FadeInUp({ children, delay = 0, className = '' }: { children: React.Rea
 const OrderSuccess: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const orderId = searchParams.get('orderId');
+  const { id: routeOrderId } = useParams<{ id: string }>();
+  const orderId = searchParams.get('orderId') || routeOrderId;
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     if (!orderId) {
@@ -105,16 +107,34 @@ const OrderSuccess: React.FC = () => {
   const loadOrder = async () => {
     try {
       const res = await orderApi.getOrderDetail(Number(orderId));
-      if (res.data?.success || res.data?.data) {
-        setOrder(res.data.data || res.data);
-      } else {
-        setOrder({ id: orderId, order_no: 'ORD' + Date.now(), amount: 299, order_type: 'basic' });
+      const loadedOrder = res.data?.data?.order || res.data?.order;
+      if (!res.data?.success || !loadedOrder?.id) {
+        throw new Error(res.data?.error?.message || '订单加载失败');
       }
-    } catch {
-      setOrder({ id: orderId, order_no: 'ORD' + Date.now(), amount: 299, order_type: 'basic' });
+      setOrder(loadedOrder);
+    } catch (error: any) {
+      setLoadError(error?.response?.data?.error?.message || error?.message || '订单加载失败，请返回用户中心查看');
     }
     setLoading(false);
   };
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-[#0f1419] flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-[#1a1f2e] rounded-2xl border border-white/10 p-6 text-center">
+          <FileText className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <h1 className="text-xl font-bold text-white mb-2">订单加载失败</h1>
+          <p className="text-gray-400 mb-6">{loadError}</p>
+          <Link
+            to="/user-dashboard"
+            className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl font-medium transition-all flex items-center justify-center"
+          >
+            返回用户中心
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (loading || !order) {
     return (

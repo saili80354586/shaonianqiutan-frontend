@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { userApi } from '../services/api';
+import { userApi, unwrapApiResponse } from '../services/api';
 import { Loading } from '../components';
 import {
   Calendar, Trophy, Zap, BookOpen, Plus, Edit2, Trash2,
@@ -56,39 +56,11 @@ const GrowthRecords: React.FC = () => {
   const loadRecords = async () => {
     try {
       const response = await userApi.getGrowthRecords();
-      if (response.success && response.data) {
-        setRecords(response.data);
+      const payload = unwrapApiResponse(response);
+      if (payload.success && payload.data) {
+        setRecords(payload.data.records || payload.data);
       } else {
-        // 使用示例数据
-        setRecords([
-          {
-            id: '1',
-            date: '2024-03-15',
-            title: '入选校队主力阵容',
-            description: '凭借在选拔赛中的出色表现，成功入选学校足球队主力阵容，担任中场核心位置。',
-            type: 'milestone',
-            tags: ['校队', '主力'],
-          },
-          {
-            id: '2',
-            date: '2024-02-20',
-            title: '市级青少年联赛 vs 实验小学',
-            description: '在激烈的比赛中打入关键进球，帮助球队2:1获胜晋级。展现了良好的门前把握机会能力。',
-            type: 'match',
-            location: '市体育中心',
-            opponent: '实验小学',
-            score: '2:1',
-            tags: ['进球', '关键战'],
-          },
-          {
-            id: '3',
-            date: '2024-01-10',
-            title: '冬训体能突破',
-            description: '经过一个月的冬训，30米跑成绩从4.8秒提升到4.6秒，体能测试全部达标。',
-            type: 'training',
-            tags: ['体能', '突破'],
-          },
-        ]);
+        setRecords([]);
       }
     } catch (error) {
       console.error('加载成长记录失败:', error);
@@ -104,14 +76,16 @@ const GrowthRecords: React.FC = () => {
       if (editingRecord) {
         // 更新记录
         const response = await userApi.updateGrowthRecord(editingRecord.id, formData);
-        if (response.success) {
+        const payload = unwrapApiResponse(response);
+        if (payload.success) {
           setRecords(records.map(r => r.id === editingRecord.id ? { ...r, ...formData } as GrowthRecord : r));
         }
       } else {
         // 创建新记录
         const response = await userApi.createGrowthRecord(formData);
-        if (response.success && response.data) {
-          setRecords([response.data, ...records]);
+        const payload = unwrapApiResponse(response);
+        if (payload.success && payload.data) {
+          setRecords([payload.data, ...records]);
         }
       }
       resetForm();
@@ -125,7 +99,8 @@ const GrowthRecords: React.FC = () => {
 
     try {
       const response = await userApi.deleteGrowthRecord(id);
-      if (response.success) {
+      const payload = unwrapApiResponse(response);
+      if (payload.success) {
         setRecords(records.filter(r => r.id !== id));
       }
     } catch (error) {

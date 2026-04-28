@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { reportApi } from '../services/api';
+import { reportApi, unwrapApiResponse } from '../services/api';
 import type { Report } from '../types';
 import { Loading } from '../components';
 
@@ -49,8 +49,9 @@ const EditReport: React.FC = () => {
   const loadReport = async (reportId: string) => {
     try {
       const response = await reportApi.getById(reportId);
-      if (response.success && response.data) {
-        const report = response.data.data;
+      const payload = unwrapApiResponse(response);
+      if (payload.success && payload.data) {
+        const report = payload.data.data || payload.data;
         (Object.keys(report) as Array<keyof Report>).forEach(key => {
           setValue(key as any, report[key]);
         });

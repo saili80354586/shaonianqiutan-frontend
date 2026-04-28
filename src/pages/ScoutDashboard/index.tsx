@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search,
   FileText,
@@ -16,12 +16,13 @@ import {
   Plus,
   AlertCircle
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { CreatePostModal } from '../ScoutMap/SocialFeed';
 import { StatsGridSkeleton, ListItemSkeleton } from '../../components/ui/loading';
 import ScoutPlayers from './ScoutPlayers';
 import ScoutReportEditor from './ScoutReportEditor';
 import type { ScoutReportData } from './ScoutReportEditor';
-import { scoutApi } from '../../services/api';
+import { scoutApi, unwrapApiResponse } from '../../services/api';
 import { DashboardLayout } from '../../components/dashboard';
 import type { SidebarConfig, MenuItemDef } from '../../components/dashboard/types';
 import { useAuthStore } from '../../store';
@@ -57,6 +58,44 @@ interface ScoutTask {
   status: 'available' | 'accepted' | 'completed';
 }
 
+interface ApiScoutPlayer {
+  nickname?: string;
+  real_name?: string;
+  name?: string;
+}
+
+interface ApiScoutReport {
+  id: number;
+  player_id: number;
+  player?: ApiScoutPlayer;
+  overall_rating?: number;
+  potential_rating?: string;
+  status?: string;
+  created_at: string;
+  views?: number;
+  likes?: number;
+}
+
+interface ApiScoutTask {
+  id: number;
+  title: string;
+  region?: string;
+  age_group?: string;
+  deadline: string;
+  reward?: number;
+  status?: string;
+}
+
+interface ScoutDashboardPayload {
+  total_discovered?: number;
+  total_reports?: number;
+  published_reports?: number;
+  adopted_reports?: number;
+  followed_players?: number;
+  recent_reports?: ApiScoutReport[];
+  available_tasks?: ApiScoutTask[];
+}
+
 interface Player {
   id: string;
   name: string;
@@ -64,8 +103,14 @@ interface Player {
   position: string;
   region?: string;
   team?: string;
+  avatar?: string;
   potential?: 'S' | 'A' | 'B' | 'C' | 'D';
   isFollowed?: boolean;
+}
+
+interface ScoutReportRouteState {
+  activeTab?: 'editor';
+  reportPlayer?: Partial<Player> & { userId?: number };
 }
 
 const colorMap: Record<string, { bg: string; icon: string; border: string }> = {
@@ -75,8 +120,37 @@ const colorMap: Record<string, { bg: string; icon: string; border: string }> = {
   pink: { bg: 'bg-pink-500/10', icon: 'text-pink-400', border: 'border-pink-500/20' },
 };
 
+const getErrorMessage = (err: unknown, fallback: string) => (
+  err instanceof Error ? err.message : fallback
+);
+
+const mapScoutReport = (report: ApiScoutReport): RecentReport => ({
+  id: report.id,
+  playerId: report.player_id,
+  playerName: report.player?.nickname || report.player?.real_name || report.player?.name || '未知球员',
+  overallRating: report.overall_rating || 0,
+  potentialRating: (report.potential_rating || 'B') as RecentReport['potentialRating'],
+  status: (report.status || 'draft') as RecentReport['status'],
+  createdAt: report.created_at,
+  views: report.views || 0,
+  likes: report.likes || 0,
+});
+
+const mapScoutTask = (task: ApiScoutTask): ScoutTask => ({
+  id: task.id,
+  title: task.title,
+  region: task.region || '',
+  ageGroup: task.age_group || '',
+  deadline: task.deadline,
+  reward: task.reward || 0,
+  status: (task.status === 'open' ? 'available' : task.status) as ScoutTask['status'],
+});
+
 const ScoutDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const entryTab = searchParams.get('tab');
   const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'players' | 'tasks' | 'editor'>('overview');
   const [reportPlayer, setReportPlayer] = useState<Player | null>(null);
@@ -96,15 +170,53 @@ const ScoutDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const routeState = location.state as ScoutReportRouteState | null;
+    let incomingPlayer = routeState?.reportPlayer;
+
+    if (!incomingPlayer) {
+      const cached = sessionStorage.getItem('scoutReportDraftPlayer');
+      if (cached) {
+        try {
+          incomingPlayer = JSON.parse(cached) as ScoutReportRouteState['reportPlayer'];
+        } catch {
+          sessionStorage.removeItem('scoutReportDraftPlayer');
+        }
+      }
+    }
+
+    const shouldOpenEditor = entryTab === 'editor' || routeState?.activeTab === 'editor' || !!incomingPlayer;
+    if (!shouldOpenEditor || !incomingPlayer) return;
+
+    const playerId = incomingPlayer.id || incomingPlayer.userId;
+    if (!playerId) return;
+
+    setReportPlayer({
+      id: String(playerId),
+      name: incomingPlayer.name || '未知球员',
+      age: Number(incomingPlayer.age || 0),
+      position: incomingPlayer.position || '未知',
+      team: incomingPlayer.team,
+      avatar: incomingPlayer.avatar,
+    });
+    setActiveTab('editor');
+    sessionStorage.removeItem('scoutReportDraftPlayer');
+
+    if (entryTab === 'editor' || routeState?.activeTab) {
+      navigate('/scout/dashboard', { replace: true, state: null });
+    }
+  }, [entryTab, location.state, navigate]);
+
   // 获取工作台数据
   const fetchDashboard = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const res = await scoutApi.getDashboard();
-      if (res.success && res.data) {
+      const body = unwrapApiResponse(res);
+      if (body.success && body.data) {
         // 后端返回 snake_case，前端使用 camelCase，需要转换
-        const data = res.data;
+        const data = body.data as ScoutDashboardPayload;
         setStats({
           totalDiscovered: data.total_discovered || 0,
           totalReports: data.total_reports || 0,
@@ -113,31 +225,15 @@ const ScoutDashboard: React.FC = () => {
           followedPlayers: data.followed_players || 0,
         });
         // 转换 recentReports: 从后端获取 Player 对象中的 nickname 作为 playerName
-        setRecentReports((data.recent_reports || []).map((r: any) => ({
-          id: r.id,
-          playerId: r.player_id,
-          playerName: r.player?.nickname || r.player?.real_name || '未知球员',
-          overallRating: r.overall_rating || 0,
-          potentialRating: (r.potential_rating || 'B') as RecentReport['potentialRating'],
-          status: (r.status || 'draft') as RecentReport['status'],
-          createdAt: r.created_at,
-          views: r.views || 0,
-          likes: r.likes || 0,
-        })));
+        setRecentReports((data.recent_reports || []).map(mapScoutReport));
         // 转换 availableTasks
-        setTasks((data.available_tasks || []).map((t: any) => ({
-          id: t.id,
-          title: t.title,
-          region: t.region || '',
-          ageGroup: t.age_group || '',
-          deadline: t.deadline,
-          reward: t.reward || 0,
-          status: (t.status === 'open' ? 'available' : t.status) as ScoutTask['status'],
-        })));
+        setTasks((data.available_tasks || []).map(mapScoutTask));
+      } else {
+        setError(body.error?.message || '获取数据失败');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('获取工作台数据失败:', err);
-      setError(err.message || '获取数据失败');
+      setError(getErrorMessage(err, '获取数据失败'));
     } finally {
       setLoading(false);
     }
@@ -148,21 +244,35 @@ const ScoutDashboard: React.FC = () => {
     try {
       setLoading(true);
       const res = await scoutApi.getReports({ page_size: 50 });
-      if (res.success && res.data) {
-        setAllReports((res.data.list || []).map((r: any) => ({
-          id: r.id,
-          playerId: r.player_id,
-          playerName: r.player?.nickname || r.player?.real_name || '未知球员',
-          overallRating: r.overall_rating || 0,
-          potentialRating: (r.potential_rating || 'B') as RecentReport['potentialRating'],
-          status: (r.status || 'draft') as RecentReport['status'],
-          createdAt: r.created_at,
-          views: r.views || 0,
-          likes: r.likes || 0,
-        })));
+      const body = unwrapApiResponse(res);
+      if (body.success && body.data) {
+        const data = body.data as { list?: ApiScoutReport[] };
+        setAllReports((data.list || []).map(mapScoutReport));
+      } else {
+        toast.error(body.error?.message || '获取报告列表失败');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('获取报告列表失败:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchTasks = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await scoutApi.getTasks({ page_size: 50 });
+      const body = unwrapApiResponse(res);
+      if (body.success && body.data) {
+        const data = body.data as { list?: ApiScoutTask[] };
+        setTasks((data.list || []).map(mapScoutTask));
+      } else {
+        setError(body.error?.message || '获取任务失败');
+      }
+    } catch (err: unknown) {
+      console.error('获取任务列表失败:', err);
+      setError(getErrorMessage(err, '获取任务失败'));
     } finally {
       setLoading(false);
     }
@@ -174,9 +284,9 @@ const ScoutDashboard: React.FC = () => {
     } else if (activeTab === 'reports') {
       fetchReports();
     } else if (activeTab === 'tasks') {
-      fetchDashboard();
+      fetchTasks();
     }
-  }, [activeTab, fetchDashboard, fetchReports]);
+  }, [activeTab, fetchDashboard, fetchReports, fetchTasks]);
 
   // 处理写报告
   const handleWriteReport = (player: Player) => {
@@ -187,8 +297,14 @@ const ScoutDashboard: React.FC = () => {
   // 处理报告保存
   const handleReportSave = async (data: ScoutReportData) => {
     try {
-      await scoutApi.createReport({
-        player_id: parseInt(reportPlayer?.id || '0'),
+      const playerId = parseInt(reportPlayer?.id || data.playerId || '0');
+      if (!playerId) {
+        toast.error('请先选择球员');
+        return;
+      }
+
+      const res = await scoutApi.createReport({
+        player_id: playerId,
         overall_rating: data.overallRating,
         potential_rating: data.potentialRating,
         strengths: data.strengths,
@@ -198,18 +314,29 @@ const ScoutDashboard: React.FC = () => {
         recommendation: data.recommendation,
         target_club: data.targetClub,
       });
-      alert('报告已保存');
-    } catch (err: any) {
+      const body = unwrapApiResponse(res);
+      if (!body.success) {
+        toast.error(body.error?.message || '保存失败');
+        return;
+      }
+      toast.success('报告已保存');
+    } catch (err: unknown) {
       console.error('保存报告失败:', err);
-      alert(err.message || '保存失败');
+      toast.error(getErrorMessage(err, '保存失败'));
     }
   };
 
   // 处理报告发布
   const handleReportPublish = async (data: ScoutReportData) => {
     try {
+      const playerId = parseInt(reportPlayer?.id || data.playerId || '0');
+      if (!playerId) {
+        toast.error('请先选择球员');
+        return;
+      }
+
       const res = await scoutApi.createReport({
-        player_id: parseInt(reportPlayer?.id || '0'),
+        player_id: playerId,
         overall_rating: data.overallRating,
         potential_rating: data.potentialRating,
         strengths: data.strengths,
@@ -219,16 +346,25 @@ const ScoutDashboard: React.FC = () => {
         recommendation: data.recommendation,
         target_club: data.targetClub,
       });
-      if (res.success && res.data?.id) {
-        await scoutApi.publishReport(res.data.id);
+      const body = unwrapApiResponse(res);
+      if (body.success && body.data?.id) {
+        const publishRes = await scoutApi.publishReport(body.data.id);
+        const publishBody = unwrapApiResponse(publishRes);
+        if (!publishBody.success) {
+          toast.error(publishBody.error?.message || '发布失败');
+          return;
+        }
+      } else {
+        toast.error(body.error?.message || '发布失败');
+        return;
       }
-      alert('报告已发布');
+      toast.success('报告已发布');
       setActiveTab('reports');
       setReportPlayer(null);
       fetchDashboard();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('发布报告失败:', err);
-      alert(err.message || '发布失败');
+      toast.error(getErrorMessage(err, '发布失败'));
     }
   };
 
@@ -236,6 +372,21 @@ const ScoutDashboard: React.FC = () => {
   const handleBackToOverview = () => {
     setActiveTab('overview');
     setReportPlayer(null);
+  };
+
+  const handleAcceptTask = async (taskId: number, refresh: () => void) => {
+    try {
+      const res = await scoutApi.acceptTask(taskId);
+      const body = unwrapApiResponse(res);
+      if (!body.success) {
+        toast.error(body.error?.message || '接取失败');
+        return;
+      }
+      toast.success('接取成功');
+      refresh();
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, '接取失败'));
+    }
   };
 
   // 获取当前激活的分组key
@@ -354,11 +505,11 @@ const ScoutDashboard: React.FC = () => {
           </button>
         ) : activeTab === 'reports' ? (
           <button
-            onClick={() => { setReportPlayer(null); setActiveTab('editor'); }}
+            onClick={() => { setReportPlayer(null); setActiveTab('players'); }}
             className="px-4 py-2 bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-400 hover:to-purple-400 text-white font-medium rounded-lg transition-all shadow-lg shadow-violet-500/20 flex items-center gap-2 text-sm"
           >
             <Plus className="w-4 h-4" />
-            撰写新报告
+            选择球员写报告
           </button>
         ) : activeTab === 'players' ? (
           <button
@@ -522,15 +673,7 @@ const ScoutDashboard: React.FC = () => {
                         </div>
                       </div>
                       <button
-                        onClick={async () => {
-                          try {
-                            await scoutApi.acceptTask(task.id);
-                            alert('接取成功');
-                            fetchDashboard();
-                          } catch (err: any) {
-                            alert(err.message || '接取失败');
-                          }
-                        }}
+                        onClick={() => handleAcceptTask(task.id, fetchDashboard)}
                         className="w-full mt-3 py-2 bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 text-sm font-medium rounded-lg transition-colors"
                       >
                         立即接取
@@ -554,10 +697,10 @@ const ScoutDashboard: React.FC = () => {
                   <FileText className="w-12 h-12 mx-auto mb-4" />
                   <p>暂无报告</p>
                   <button
-                    onClick={() => { setReportPlayer(null); setActiveTab('editor'); }}
+                    onClick={() => { setReportPlayer(null); setActiveTab('players'); }}
                     className="mt-4 px-4 py-2 bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 rounded-lg"
                   >
-                    撰写第一份报告
+                    选择球员写报告
                   </button>
                 </div>
               ) : (
@@ -634,7 +777,7 @@ const ScoutDashboard: React.FC = () => {
                 <AlertCircle className="w-12 h-12 mx-auto mb-4" />
                 <p>{error}</p>
                 <button
-                  onClick={fetchDashboard}
+                  onClick={fetchTasks}
                   className="mt-4 px-4 py-2 bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 rounded-lg"
                 >
                   重试
@@ -676,15 +819,7 @@ const ScoutDashboard: React.FC = () => {
                     </div>
                     {task.status === 'available' && (
                       <button
-                        onClick={async () => {
-                          try {
-                            await scoutApi.acceptTask(task.id);
-                            alert('接取成功');
-                            fetchDashboard();
-                          } catch (err: any) {
-                            alert(err.message || '接取失败');
-                          }
-                        }}
+                        onClick={() => handleAcceptTask(task.id, fetchTasks)}
                         className="w-full mt-4 py-2.5 bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-400 hover:to-purple-400 text-white font-medium rounded-xl transition-all"
                       >
                         接取任务
@@ -696,8 +831,6 @@ const ScoutDashboard: React.FC = () => {
             )}
           </div>
         )}
-      </main>
-
       <CreatePostModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}

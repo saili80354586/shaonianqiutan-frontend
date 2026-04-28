@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Clock, CheckCircle, QrCode, Wallet, CreditCard, Loader2, AlertCircle } from 'lucide-react';
 import { orderApi, paymentApi } from '../services/api';
 
 const OrderPayment: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const orderId = searchParams.get('orderId');
+  const { id: routeOrderId } = useParams<{ id: string }>();
+  const orderId = searchParams.get('orderId') || routeOrderId;
   const [paymentMethod, setPaymentMethod] = useState<'wechat' | 'alipay' | 'balance'>('wechat');
   const [loading, setLoading] = useState(false);
   const [order, setOrder] = useState<any>(null);
+  const [orderLoadError, setOrderLoadError] = useState('');
   const [countdown, setCountdown] = useState(900); // 15分钟
   const [payStatus, setPayStatus] = useState<'idle' | 'paying' | 'success' | 'failed'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
@@ -30,31 +32,15 @@ const OrderPayment: React.FC = () => {
 
   const loadOrder = async () => {
     try {
+      setOrderLoadError('');
       const res = await orderApi.getOrderDetail(Number(orderId));
-      if (res.data?.success || res.data?.data) {
-        setOrder(res.data.data || res.data);
-      } else {
-        // Mock 数据
-        setOrder({
-          id: orderId,
-          order_no: 'ORD' + Date.now(),
-          amount: 299,
-          status: 'pending',
-          analyst: { name: '李分析师' },
-          player_name: '王小明',
-          order_type: 'video'
-        });
+      const loadedOrder = res.data?.data?.order || res.data?.order;
+      if (!res.data?.success || !loadedOrder?.id) {
+        throw new Error(res.data?.error?.message || '订单加载失败');
       }
-    } catch (e) {
-      setOrder({
-        id: orderId,
-        order_no: 'ORD' + Date.now(),
-        amount: 299,
-        status: 'pending',
-        analyst: { name: '李分析师' },
-        player_name: '王小明',
-        order_type: 'video'
-      });
+      setOrder(loadedOrder);
+    } catch (error: any) {
+      setOrderLoadError(error?.response?.data?.error?.message || error?.message || '订单加载失败，请返回订单详情重试');
     }
   };
 
@@ -71,11 +57,13 @@ const OrderPayment: React.FC = () => {
         });
       }, 1000);
 
-      // 模拟轮询支付状态
-      pollRef.current = setInterval(() => {
-        // 80% 概率在 3-6 秒后成功
-        if (Math.random() > 0.2) {
-          setPayStatus('success');
+      pollRef.current = setInterval(async () => {
+        try {
+          const res = await paymentApi.getOrderPaymentStatus(Number(orderId));
+          const status = res.data?.data;
+          if (status?.is_paid) setPayStatus('success');
+        } catch {
+          // 保持等待状态，由倒计时兜底
         }
       }, 2000);
     } else {
@@ -100,19 +88,23 @@ const OrderPayment: React.FC = () => {
     setLoading(true);
     setPayStatus('paying');
     try {
+      if (!import.meta.env.DEV) {
+        throw new Error('生产支付通道尚未接入，请等待平台开通真实支付后继续。');
+      }
+
       // 调用后端模拟支付 API
       const res = await paymentApi.simulatePay({
         order_id: Number(orderId),
         payment_method: paymentMethod,
       });
       if (res.data?.success) {
-        // 支付成功，由轮询 useEffect 处理跳转
+        setPayStatus('success');
       } else {
-        setErrorMsg(res.data?.message || '支付失败');
+        setErrorMsg(res.data?.error?.message || res.data?.message || '支付失败');
         setPayStatus('failed');
       }
     } catch (e: any) {
-      setErrorMsg(e?.response?.data?.message || '支付发起失败，请重试');
+      setErrorMsg(e?.response?.data?.error?.message || e?.response?.data?.message || e?.message || '支付发起失败，请重试');
       setPayStatus('failed');
     }
     setLoading(false);
@@ -123,6 +115,24 @@ const OrderPayment: React.FC = () => {
     const s = (seconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
   };
+
+  if (orderLoadError) {
+    return (
+      <div className="min-h-screen bg-[#0f1419] flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-[#1a1f2e] rounded-2xl border border-gray-800 p-6 text-center">
+          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <h1 className="text-xl font-bold text-white mb-2">订单加载失败</h1>
+          <p className="text-gray-400 mb-6">{orderLoadError}</p>
+          <button
+            onClick={() => navigate('/user-dashboard')}
+            className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition-colors"
+          >
+            返回用户中心
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!order) {
     return (
@@ -165,7 +175,7 @@ const OrderPayment: React.FC = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">服务类型</span>
-              <span className="text-white">{order.order_type === 'video' ? '视频分析' : order.order_type === 'pro' ? '视频分析(专业版)' : '文字咨询'}</span>
+              <span className="text-white">{order.order_type === 'video' || order.order_type === 'pro' ? '视频解析版' : '专业文字版'}</span>
             </div>
           </div>
 

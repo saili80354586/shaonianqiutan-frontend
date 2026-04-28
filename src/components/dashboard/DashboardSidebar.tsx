@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
-  Home,
   User,
   LayoutDashboard,
   LogOut,
@@ -11,7 +10,6 @@ import {
   Edit3,
   ChevronRight,
   X,
-  Menu,
 } from 'lucide-react';
 import { useAuthStore } from '../../store';
 import { NotificationBadge } from '../social';
@@ -41,7 +39,6 @@ const getRoleColor = (roleName: string) => {
 export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   config,
   activeItemId,
-  activeGroupKey,
   onItemClick,
   mobileOpen = false,
   onMobileClose,
@@ -49,7 +46,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, clearAuth } = useAuthStore();
+  const { clearAuth } = useAuthStore();
   const [openGroups, setOpenGroups] = useState<string[]>([]);
   const [messageUnreadCount, setMessageUnreadCount] = useState(0);
 
@@ -60,7 +57,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
     if (config.businessGroups.length > 0 && openGroups.length === 0) {
       setOpenGroups([config.businessGroups[0].key]);
     }
-  }, [config.businessGroups]);
+  }, [config.businessGroups, openGroups.length]);
 
   // 获取私信未读数
   useEffect(() => {
@@ -112,67 +109,15 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
     onMobileClose?.();
   };
 
-  // 品牌Logo区域
-  const BrandSection = () => (
-    <div className="p-4 sm:p-5 border-b border-white/[0.06]">
-      <Link to="/" className="flex items-center gap-3 group">
-        <div
-          className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br ${roleColor.gradient} flex items-center justify-center shadow-lg transition-shadow group-hover:shadow-xl`}
-        >
-          <span className="text-white font-bold text-base">⚽</span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <h1 className="text-white font-semibold text-sm sm:text-base tracking-tight">
-            {config.roleName}
-          </h1>
-          <p className="text-slate-500 text-[10px]">少年球探</p>
-        </div>
-        {mobileOpen && (
-          <button
-            onClick={onMobileClose}
-            className="p-2 rounded-lg bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors"
-          >
-            <X size={18} />
-          </button>
-        )}
-      </Link>
-    </div>
-  );
-
-  // 用户信息区域
-  const UserSection = () => (
-    <div className="px-4 py-3 border-b border-white/[0.06]">
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
-          {user?.nickname?.[0] || user?.username?.[0] || '👤'}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-white text-sm font-medium truncate">
-            {user?.nickname || user?.username || '用户'}
-          </p>
-          <p className="text-slate-500 text-xs truncate">{user?.email || ''}</p>
-        </div>
-      </div>
-    </div>
-  );
-
   // 核心导航（所有角色统一）
-  const CoreNavSection = () => (
-    <nav className="px-3 py-2 space-y-0.5">
-      {/* 返回首页 */}
-      <Link
-        to="/"
-        className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.04] transition-all text-sm"
-      >
-        <Home className="w-[18px] h-[18px]" />
-        <span>返回首页</span>
-      </Link>
-
+  const CoreNavSection = ({ mobile = false }: { mobile?: boolean }) => (
+    <nav className={`px-3 pb-2 space-y-0.5 ${mobile ? 'pt-3' : 'pt-20'}`}>
       {/* 个人主页 */}
       {config.profilePath && (
         <>
           <Link
             to={config.profilePath}
+            onClick={onMobileClose}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.04] transition-all text-sm"
           >
             <User className="w-[18px] h-[18px]" />
@@ -190,6 +135,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
       {/* 工作台 */}
       <Link
         to={config.dashboardPath}
+        onClick={onMobileClose}
         className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
           location.pathname === config.dashboardPath
             ? `${roleColor.light} font-medium`
@@ -364,7 +310,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
               </button>
             </div>
           )}
-          <CoreNavSection />
+          <CoreNavSection mobile={mobile} />
         </div>
 
         {/* 可滚动区域 */}
