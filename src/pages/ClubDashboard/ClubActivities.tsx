@@ -19,6 +19,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  ShieldAlert,
   Share2,
   Trash2,
   Users,
@@ -167,6 +168,27 @@ const toPayload = (form: ActivityForm) => ({
   reviewImages: form.reviewImages.split('\n').map(item => item.trim()).filter(Boolean),
 });
 
+const activityMobilePattern = /1[3-9]\d{9}/;
+const activityLinkPattern = /(https?:\/\/|www\.|[a-z0-9][a-z0-9-]*(\.[a-z0-9][a-z0-9-]*)*\.[a-z]{2,}\b)/i;
+const activityQRKeywords = ['微信二维码', '二维码', '扫码', '扫一扫', '微信码'];
+
+const auditActivityText = (fieldName: string, value?: string) => {
+  const text = value?.trim();
+  if (!text) return '';
+  if (activityMobilePattern.test(text)) return `${fieldName}不能包含手机号，请填写到结构化联系方式字段`;
+  if (activityLinkPattern.test(text)) return `${fieldName}不能包含外部链接，请引导用户在站内查看活动`;
+  if (activityQRKeywords.some(keyword => text.includes(keyword))) return `${fieldName}不能包含二维码或扫码引导`;
+  return '';
+};
+
+const getActivityPublishAuditMessage = (activity: Pick<ActivityForm | ClubActivity, 'title' | 'description'>) =>
+  auditActivityText('活动标题', activity.title) || auditActivityText('活动简介', activity.description);
+
+const getApiErrorMessage = (err: unknown, fallback: string) => {
+  const error = err as { response?: { data?: { error?: { message?: string }; message?: string } }; message?: string };
+  return error.response?.data?.error?.message || error.response?.data?.message || error.message || fallback;
+};
+
 const getShareUrl = (clubId: number, activityId: number) =>
   `${window.location.origin}/clubs/${clubId}?activity=${activityId}`;
 
@@ -185,6 +207,7 @@ const ClubActivities: React.FC<ClubActivitiesProps> = ({ clubId, onBack }) => {
   const [registrationLoading, setRegistrationLoading] = useState(false);
   const [registrationFilter, setRegistrationFilter] = useState<'all' | RegistrationStatus>('all');
   const [selectedRegistrationIds, setSelectedRegistrationIds] = useState<Set<number>>(new Set());
+  const contentAuditMessage = useMemo(() => getActivityPublishAuditMessage(form), [form.title, form.description]);
 
   useEffect(() => {
     loadActivities();
@@ -301,6 +324,10 @@ const ClubActivities: React.FC<ClubActivitiesProps> = ({ clubId, onBack }) => {
       toast.error('请填写活动地点');
       return;
     }
+    if (form.publishStatus === 'published' && contentAuditMessage) {
+      toast.error(contentAuditMessage);
+      return;
+    }
     setSaving(true);
     try {
       if (editing) {
@@ -314,7 +341,7 @@ const ClubActivities: React.FC<ClubActivitiesProps> = ({ clubId, onBack }) => {
       await loadActivities();
     } catch (err) {
       console.error('保存活动失败:', err);
-      toast.error('保存失败，请重试');
+      toast.error(getApiErrorMessage(err, '保存失败，请重试'));
     } finally {
       setSaving(false);
     }
@@ -327,13 +354,18 @@ const ClubActivities: React.FC<ClubActivitiesProps> = ({ clubId, onBack }) => {
         await clubActivityApi.unpublishActivity(clubId, activity.id);
         toast.success('活动已下架');
       } else {
+        const auditMessage = getActivityPublishAuditMessage(activity);
+        if (auditMessage) {
+          toast.error(auditMessage);
+          return;
+        }
         await clubActivityApi.publishActivity(clubId, activity.id);
         toast.success('活动已发布');
       }
       await loadActivities();
     } catch (err) {
       console.error('切换发布状态失败:', err);
-      toast.error('操作失败，请重试');
+      toast.error(getApiErrorMessage(err, '操作失败，请重试'));
     }
   };
 
@@ -679,6 +711,21 @@ const ClubActivities: React.FC<ClubActivitiesProps> = ({ clubId, onBack }) => {
                   <span className="text-sm text-slate-300">活动简介</span>
                   <textarea value={form.description} maxLength={1000} rows={4} onChange={(event) => setForm(prev => ({ ...prev, description: event.target.value }))} className="w-full rounded-xl bg-[#0a0e17] border border-white/[0.08] px-3 py-3 text-white outline-none focus:border-[#39ff14]/50 resize-none" />
                 </label>
+              </div>
+              <div className={`rounded-xl border px-4 py-3 ${contentAuditMessage ? 'border-amber-500/30 bg-amber-500/10' : 'border-cyan-500/20 bg-cyan-500/10'}`}>
+                <div className="flex items-start gap-3">
+                  <ShieldAlert className={`mt-0.5 h-5 w-5 flex-shrink-0 ${contentAuditMessage ? 'text-amber-300' : 'text-cyan-300'}`} />
+                  <div>
+                    <div className={`text-sm font-medium ${contentAuditMessage ? 'text-amber-200' : 'text-cyan-200'}`}>
+                      {contentAuditMessage
+                        ? (form.publishStatus === 'published' ? '发布前需要调整内容' : '可保存草稿，发布前需处理')
+                        : '灰度发布建议'}
+                    </div>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-300">
+                      {contentAuditMessage || '先保存草稿或暂不展示完成内部联调，确认报名、通知和地图展示无误后再正式发布。标题和简介不要放手机号、二维码或外部链接。'}
+                    </p>
+                  </div>
+                </div>
               </div>
               <label className="flex items-center gap-2 text-sm text-slate-300">
                 <input type="checkbox" checked={form.isReview} onChange={(event) => setForm(prev => ({ ...prev, isReview: event.target.checked }))} className="w-4 h-4 rounded border-slate-600 bg-[#0a0e17]" />
