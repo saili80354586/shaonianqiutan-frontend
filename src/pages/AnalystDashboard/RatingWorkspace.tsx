@@ -144,10 +144,16 @@ const RatingWorkspace: React.FC<RatingWorkspaceProps> = ({ order, onComplete, on
   };
 
   const handleScoreChange = (cat: 'overall' | 'offense' | 'defense', key: string, val: number) => {
-    setRatings(prev => ({
-      ...prev,
-      [cat]: { ...prev[cat], [key]: { ...prev[cat][key as keyof typeof prev[typeof cat]], score: val, level: getRatingLevel(val).label } }
-    }));
+    setRatings(prev => {
+      const categoryRatings = prev[cat] as Record<string, RatingItemDetail>;
+      return {
+        ...prev,
+        [cat]: {
+          ...categoryRatings,
+          [key]: { ...categoryRatings[key], score: val, level: getRatingLevel(val).label },
+        },
+      };
+    });
   };
 
   const handleClipUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -223,7 +229,16 @@ const RatingWorkspace: React.FC<RatingWorkspaceProps> = ({ order, onComplete, on
             </div>
             <textarea
               value={r.comment}
-              onChange={(e) => setRatings(prev => ({ ...prev, [cat]: { ...prev[cat], [item.key]: { ...prev[cat][item.key as keyof typeof prev[typeof cat]], comment: e.target.value } } }))}
+              onChange={(e) => setRatings(prev => {
+                const categoryRatings = prev[cat] as Record<string, RatingItemDetail>;
+                return {
+                  ...prev,
+                  [cat]: {
+                    ...categoryRatings,
+                    [item.key]: { ...categoryRatings[item.key], comment: e.target.value },
+                  },
+                };
+              })}
               placeholder={`请描述该球员在"${item.label}"方面的表现...`}
               rows={2}
               className="w-full mt-3 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"

@@ -58,7 +58,7 @@ const ROLE_CONFIG = {
     textColor: 'text-violet-600',
     borderColor: 'border-violet-200',
     dashboardPath: '/club/dashboard',
-    homePath: (userId: number) => `/club/dashboard?tab=home-preview`,
+    homePath: (_userId: number) => `/club/dashboard?tab=home-preview`,
   },
   coach: {
     label: '教练',
@@ -98,22 +98,30 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({ compact = false, sho
   const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const toRoleKey = (role?: string | null): RoleKey | null => {
+    if (!role) return null;
+    if (role === 'user') return 'player';
+    return role in ROLE_CONFIG ? role as RoleKey : null;
+  };
+
   // 获取用户拥有的所有角色
   const userRoles: RoleKey[] = [];
 
   // 从 user.currentRole 获取当前角色
-  if (user?.currentRole && user.currentRole in ROLE_CONFIG) {
-    if (!userRoles.includes(user.currentRole as RoleKey)) {
-      userRoles.push(user.currentRole as RoleKey);
+  const userCurrentRole = toRoleKey(user?.currentRole);
+  if (userCurrentRole) {
+    if (!userRoles.includes(userCurrentRole)) {
+      userRoles.push(userCurrentRole);
     }
   }
 
   // 从 user.roles 数组获取多角色
   if (user?.roles && Array.isArray(user.roles)) {
     user.roles.forEach((roleInfo: { type: string; status: string }) => {
-      if (roleInfo.status === 'active' && roleInfo.type in ROLE_CONFIG) {
-        if (!userRoles.includes(roleInfo.type as RoleKey)) {
-          userRoles.push(roleInfo.type as RoleKey);
+      const role = toRoleKey(roleInfo.type);
+      if (roleInfo.status === 'active' && role) {
+        if (!userRoles.includes(role)) {
+          userRoles.push(role);
         }
       }
     });
@@ -124,10 +132,7 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({ compact = false, sho
     userRoles.push('player');
   }
 
-  // 如果只有一个角色且不强制显示链接，不显示切换器
-  if (userRoles.length <= 1 && !showHomeLink) return null;
-
-  const activeRole = (currentRole || userRoles[0]) as RoleKey;
+  const activeRole = toRoleKey(currentRole) || userRoles[0];
   const config = ROLE_CONFIG[activeRole];
   const Icon = config.icon;
   const userId = user?.id;
@@ -143,10 +148,14 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({ compact = false, sho
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // 如果只有一个角色且不强制显示链接，不显示切换器
+  if (userRoles.length <= 1 && !showHomeLink) return null;
+
   const handleRoleSwitch = async (role: RoleKey) => {
     if (isSwitching || role === activeRole) return;
     setIsSwitching(true);
-    await syncCurrentRole(role);
+    const storeRole = role === 'player' ? 'user' : role;
+    await syncCurrentRole(storeRole);
     setIsSwitching(false);
     setIsOpen(false);
     // 导航到对应角色的 dashboard

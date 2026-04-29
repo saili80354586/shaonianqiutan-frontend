@@ -14,7 +14,7 @@ import {
 import { useAuthStore } from '../../store';
 import { NotificationBadge } from '../social';
 import { messageApi } from '../../services/api';
-import type { DashboardSidebarProps } from './types';
+import type { DashboardSidebarProps, MenuGroupDef, MenuItemDef } from './types';
 
 // ============================================================
 // 辅助函数
@@ -100,12 +100,15 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   };
 
   const handleItemClick = (item: MenuItemDef) => {
+    const usesDirectNavigation = Boolean(item.path || item.onClick);
     if (item.onClick) {
       item.onClick();
     } else if (item.path) {
       navigate(item.path);
     }
-    onItemClick?.(item);
+    if (!usesDirectNavigation) {
+      onItemClick?.(item);
+    }
     onMobileClose?.();
   };
 

@@ -1,5 +1,6 @@
 import React from 'react';
-import type { Position, POSITIONS, POSITION_ICONS } from './data';
+import { POSITIONS, POSITION_ICONS } from './data';
+import type { Position } from './data';
 
 interface StatsPanelProps {
   title: string;

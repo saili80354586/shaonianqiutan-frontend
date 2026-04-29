@@ -1,21 +1,20 @@
 // 从 auth.ts 重新导出类型
+import type { RoleStatus, UserRole } from './auth';
+
 export type {
   UserRole,
   RoleStatus,
   AuthState,
   RoleInfo,
-  PlayerProfile,
   AnalystProfile,
   ClubProfile,
   CoachProfile,
-  RegisterRequest,
   RegisterResponse,
-  LoginRequest,
   LoginResponse,
 } from './auth';
 
 // 保持向后兼容的旧角色类型（逐步废弃）
-export type LegacyUserRole = 'user' | 'analyst' | 'admin';
+export type LegacyUserRole = UserRole;
 
 // 用户状态类型
 export type UserStatus = 'active' | 'inactive' | 'banned';
@@ -46,6 +45,8 @@ export interface User {
   current_role?: UserRole;
   status: UserStatus;
   bio?: string;
+  title?: string;
+  rating?: number;
   
   // 球员/分析师基本信息
   name?: string;
@@ -71,6 +72,12 @@ export interface User {
   jersey_number?: number;
   contactWechat?: string;
   contactPhone?: string;
+  analyst?: {
+    specialty?: string;
+    rating?: number;
+    order_count?: number;
+    experience?: string;
+  };
   
   // 家庭信息
   father_height?: number;
@@ -126,6 +133,10 @@ export interface Report {
   cover_image?: string;
   price: number;
   rating?: number;
+  overall_rating?: number;
+  strengths?: string;
+  weaknesses?: string;
+  summary?: string;
   content: string;
   pdf_url?: string;
   status: ReportStatus;
@@ -184,6 +195,9 @@ export interface Order {
   accepted_at?: string;          // 接单时间
   deadline?: string;             // 分析截止时间
   submitted_at?: string;         // 提交时间
+  completed_at?: string;         // 完成时间
+  cancelled_at?: string;         // 取消时间
+  cancel_reason?: string;        // 取消原因
   
   // 视频信息
   video_url?: string;            // 原视频URL
@@ -477,22 +491,6 @@ export interface PlayerProfile {
   growthRecords?: GrowthRecord[];
   createdAt: string;
   updatedAt: string;
-}
-
-// 视频分析结果
-export interface VideoAnalysisResult {
-  id: string;
-  duration: number;
-  detectedPlayers: number;
-  qualityScore: number;
-  stats: {
-    [key: string]: number; // speed, dribble, pass, shot, endurance 等
-  };
-  evaluation: string;
-  strengths: string[];
-  weaknesses: string[];
-  recommendations: string[];
-  reportUrl?: string;
 }
 
 // ============ 社交互动相关类型 ============

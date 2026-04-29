@@ -32,10 +32,10 @@ const AnalystManagement: React.FC = () => {
       const response = await adminApi.listAnalysts(currentPage, pageSize, statusFilter === 'all' ? '' : statusFilter);
       const body = unwrapApiResponse(response);
       if (body.success && body.data) {
-        let filteredAnalysts = body.data.list;
+        let filteredAnalysts: User[] = body.data.list || [];
         
         if (searchQuery) {
-          filteredAnalysts = filteredAnalysts.filter(a => 
+          filteredAnalysts = filteredAnalysts.filter((a: User) =>
             (a.nickname?.toLowerCase().includes(searchQuery.toLowerCase()) || false) ||
             a.phone?.includes(searchQuery) ||
             (a.analyst?.specialty?.toLowerCase().includes(searchQuery.toLowerCase()) || false)
@@ -89,7 +89,7 @@ const AnalystManagement: React.FC = () => {
     }
 
     try {
-      await adminApi.updateAnalystStatus(analyst.id.toString(), newStatus);
+      await adminApi.updateAnalystStatus(analyst.id, newStatus);
       setAnalysts(analysts.map(a => a.id === analyst.id ? { ...a, status: newStatus } : a));
       alert(`${actionText}成功`);
     } catch (error) {
@@ -126,7 +126,7 @@ const AnalystManagement: React.FC = () => {
     }
 
     try {
-      await adminApi.deleteUser(analyst.id.toString());
+      await adminApi.deleteUser(analyst.id);
       setAnalysts(analysts.filter(a => a.id !== analyst.id));
       alert('删除成功');
     } catch (error) {
@@ -146,6 +146,8 @@ const AnalystManagement: React.FC = () => {
     const { text, className } = statusMap[status] || { text: status, className: 'bg-gray-100 text-gray-800' };
     return <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${className}`}>{text}</span>;
   };
+
+  const isAnalystUser = (item: User | AnalystApplication): item is User => 'role' in item;
 
   const totalPages = Math.ceil(totalAnalysts / pageSize);
 
@@ -453,7 +455,7 @@ const AnalystManagement: React.FC = () => {
           <div className="bg-white rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold">
-                {'analyst' in selectedItem ? '分析师详情' : '申请详情'}
+                {isAnalystUser(selectedItem) ? '分析师详情' : '申请详情'}
               </h3>
               <button
                 onClick={() => setShowDetailModal(false)}
@@ -463,7 +465,7 @@ const AnalystManagement: React.FC = () => {
               </button>
             </div>
             
-            {'analyst' in selectedItem ? (
+            {isAnalystUser(selectedItem) ? (
               // 分析师详情
               <>
                 <div className="flex items-center mb-6">

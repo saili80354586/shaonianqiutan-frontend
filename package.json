@@ -12,6 +12,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "test:e2e:match": "playwright test e2e/tests/match-management.spec.ts --project=chromium; status=$?; npm run test:e2e:residue; residue=$?; if [ $status -ne 0 ]; then exit $status; fi; exit $residue",
+    "test:e2e:residue": "node scripts/check-e2e-residue.mjs",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug"
   },

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
-import * as echarts from 'echarts';
+import * as echarts from '../../lib/echarts';
 import type { Level, ProvinceStats, Player, MapLayer, EntityLayer } from './data';
 import { getLayerValue, LAYER_CONFIG, ENTITY_LAYER_CONFIG, ENTITY_LAYER_LABELS } from './data';
 
@@ -37,6 +37,8 @@ interface EChartParams {
   value?: number | string;
   data?: Record<string, unknown>;
   componentType?: string;
+  color?: string;
+  seriesName?: string;
 }
 
 interface EChartEventParams {
@@ -144,10 +146,10 @@ const MapContainer: React.FC<MapContainerProps> = ({
       const s = stats[geoName] || stats[stripped];
       if (s) {
         return {
+          ...s,
           name: geoName,
           value: getLayerValue(s, layer),
-          rawCount: s.count,
-          ...s
+          rawCount: s.count
         };
       }
       return {
@@ -330,13 +332,13 @@ const MapContainer: React.FC<MapContainerProps> = ({
     // 构建地图数据：同时保留原名和加"市"后缀的变体，以匹配 GeoJSON feature name
     const mapData = cityEntries.flatMap(([cityName, cityStats]) => {
       const base = {
+        ...cityStats,
         value: getLayerValue(cityStats, layer),
-        rawCount: cityStats.count,
-        ...cityStats
+        rawCount: cityStats.count
       };
-      const variants = [{ name: cityName, ...base }];
+      const variants = [{ ...base, name: cityName }];
       if (!cityName.endsWith('市') && !cityName.endsWith('盟') && !cityName.endsWith('州')) {
-        variants.push({ name: cityName + '市', ...base });
+        variants.push({ ...base, name: cityName + '市' });
       }
       return variants;
     });
@@ -505,10 +507,10 @@ const MapContainer: React.FC<MapContainerProps> = ({
     const layerConfig = LAYER_CONFIG[layer];
     const cityList = Object.entries(provinceData.cities)
       .map(([cityName, cityStats]) => ({
+        ...cityStats,
         name: cityName,
         value: getLayerValue(cityStats, layer),
-        rawCount: cityStats.count,
-        ...cityStats
+        rawCount: cityStats.count
       }))
       .sort((a, b) => b.value - a.value);
 
@@ -608,7 +610,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
             stack: 'total',
             data: cityList.map(c => {
               const count = (c as Record<string, unknown>)[s.key] as number | undefined;
-              return { name: c.name, value: count ?? 0, rawCount: c.rawCount, ...c };
+              return { ...c, name: c.name, value: count ?? 0, rawCount: c.rawCount };
             }),
             itemStyle: { color: s.color },
             emphasis: {
@@ -622,7 +624,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
         : [{
             name: layerConfig.label,
             type: 'bar',
-            data: cityList.map(c => ({ name: c.name, value: c.value, rawCount: c.rawCount, ...c })),
+            data: cityList.map(c => ({ ...c, name: c.name, value: c.value, rawCount: c.rawCount })),
             itemStyle: {
               color: new echartsLib.graphic.LinearGradient(0, 0, 0, 1, [
                 { offset: 0, color: layerConfig.colorEnd },
@@ -866,13 +868,11 @@ const MapContainer: React.FC<MapContainerProps> = ({
           type: 'rect',
           left: 'center',
           top: 'middle',
-          shape: { width: isMobileView ? 280 : 400, height: isMobileView ? 280 : 400 },
+          shape: { width: isMobileView ? 280 : 400, height: isMobileView ? 280 : 400, r: 8 },
           style: {
             fill: 'rgba(57, 255, 20, 0.03)',
             stroke: 'rgba(57, 255, 20, 0.15)',
             lineWidth: 1,
-            rx: 8,
-            ry: 8,
           },
         },
         {
@@ -912,8 +912,8 @@ const MapContainer: React.FC<MapContainerProps> = ({
         : [{
             name: `${layerLabels.entityName}分布`,
             type: 'scatter',
-            symbolSize: (val: number[], params: { data?: { count?: number } }) => {
-              const count = params?.data?.count || 1;
+            symbolSize: (_value: unknown, params: { data?: unknown }) => {
+              const count = ((params?.data as { count?: number } | null)?.count) || 1;
               if (count > 1) {
                 return Math.min(40, 14 + count * 2);
               }

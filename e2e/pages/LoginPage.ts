@@ -10,16 +10,11 @@ export class LoginPage {
 
   constructor(page: Page) {
     this.page = page;
-    // 俱乐部演示账号按钮
-    this.clubDemoButton = page.locator('button').filter({ hasText: /俱乐部/ }).first();
-    // 教练演示账号按钮
-    this.coachDemoButton = page.locator('button').filter({ hasText: /教练/ }).first();
-    // 球员演示账号按钮（第一个球员：王小明）
-    this.playerDemoButton = page.locator('button').filter({ hasText: /王小明/ }).first();
-    // 分析师演示账号按钮
-    this.analystDemoButton = page.locator('button').filter({ hasText: /分析师/ }).first();
-    // 管理员演示账号按钮
-    this.adminDemoButton = page.locator('button').filter({ hasText: /管理员/ }).first();
+    this.clubDemoButton = page.getByRole('button', { name: /上海绿地青训俱乐部/ });
+    this.coachDemoButton = page.getByRole('button', { name: /王振宇/ });
+    this.playerDemoButton = page.getByRole('button', { name: /林子墨/ });
+    this.analystDemoButton = page.getByRole('button', { name: /陈知远/ });
+    this.adminDemoButton = page.getByRole('button', { name: /平台管理员/ });
   }
 
   async goto() {

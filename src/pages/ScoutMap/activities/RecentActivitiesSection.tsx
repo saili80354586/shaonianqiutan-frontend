@@ -1,10 +1,19 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { MapPin, Calendar, Loader2 } from 'lucide-react';
+import { Calendar, Loader2 } from 'lucide-react';
 import ActivityMiniMap from './ActivityMiniMap';
 import ActivityCardList from './ActivityCardList';
 import ActivityDetailDrawer from './ActivityDetailDrawer';
 import type { ClubActivity, ActivityMapPoint } from './types';
+import { ACTIVITY_TYPE_CONFIG } from './types';
 import { clubActivityApi } from '../../../services/api';
+
+const RECENT_ACTIVITY_DAYS = 30;
+
+const getResponseList = <T,>(data: any): T[] => {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.activities)) return data.activities;
+  return [];
+};
 
 const RecentActivitiesSection: React.FC = () => {
   const [activities, setActivities] = useState<ClubActivity[]>([]);
@@ -20,16 +29,16 @@ const RecentActivitiesSection: React.FC = () => {
     queueMicrotask(() => { if (mounted) setLoading(true); });
 
     Promise.all([
-      clubActivityApi.getPublicActivities({ page: 1, page_size: 100 }),
-      clubActivityApi.getActivitiesMap(),
+      clubActivityApi.getPublicActivities({ page: 1, page_size: 100, status: 'upcoming', days: RECENT_ACTIVITY_DAYS }),
+      clubActivityApi.getActivitiesMap({ days: RECENT_ACTIVITY_DAYS }),
     ])
       .then(([activitiesRes, mapRes]) => {
         if (!mounted) return;
         if (activitiesRes.data?.success) {
-          setActivities(activitiesRes.data.data || []);
+          setActivities(getResponseList<ClubActivity>(activitiesRes.data.data));
         }
         if (mapRes.data?.success) {
-          setMapPoints(mapRes.data.data || []);
+          setMapPoints(getResponseList<ActivityMapPoint>(mapRes.data.data));
         }
       })
       .catch(() => {})
@@ -77,17 +86,15 @@ const RecentActivitiesSection: React.FC = () => {
             <Calendar className="w-7 h-7 text-[#00d4ff]" />
             近期活动
           </h2>
-          <p className="text-[#94a3b8]">发现全国各地的试训、集训营与交流赛机会</p>
+          <p className="text-[#94a3b8]">发现未来 {RECENT_ACTIVITY_DAYS} 天内全国各地的试训、集训营与交流赛机会</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-sm text-[#94a3b8]">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#39ff14]" />
-            正常活动
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-            3天内开始
-          </div>
+          {Object.entries(ACTIVITY_TYPE_CONFIG).map(([key, config]) => (
+            <div key={key} className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: config.color }} />
+              {config.label}
+            </div>
+          ))}
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-[#fbbf24]" />
             选中活动
@@ -136,8 +143,8 @@ const RecentActivitiesSection: React.FC = () => {
         onClose={() => setIsDrawerOpen(false)}
         onRegisterSuccess={() => {
           // 刷新列表
-          clubActivityApi.getPublicActivities({ page: 1, page_size: 100 }).then((res) => {
-            if (res.data?.success) setActivities(res.data.data || []);
+          clubActivityApi.getPublicActivities({ page: 1, page_size: 100, status: 'upcoming', days: RECENT_ACTIVITY_DAYS }).then((res) => {
+            if (res.data?.success) setActivities(getResponseList<ClubActivity>(res.data.data));
           });
         }}
       />

@@ -74,6 +74,12 @@ export type EntityLayer = 'players' | 'clubs' | 'coaches' | 'analysts' | 'scouts
 export type Position = '前锋' | '中场' | '后卫' | '门将';
 
 export const POSITIONS: Position[] = ['前锋', '中场', '后卫', '门将'];
+export const POSITION_ICONS: Record<Position, string> = {
+  '前锋': '⚡',
+  '中场': '🎯',
+  '后卫': '🛡',
+  '门将': '🧤',
+};
 
 export const LAYER_CONFIG: Record<MapLayer, { label: string; field: keyof ProvinceStats; colorStart: string; colorEnd: string }> = {
   density: { label: '球员密度', field: 'count', colorStart: 'rgba(57, 255, 20, 0.1)', colorEnd: '#39ff14' },
@@ -242,5 +248,3 @@ export function getPanelStats(
     avgRating: playerCount > 0 ? Math.round((totalRating / playerCount) * 10) / 10 : 0,
   };
 }
-
-export { mockPlayers } from './mockData';

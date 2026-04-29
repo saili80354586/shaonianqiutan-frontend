@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { analystApi } from '../../services/api';
-import type { Order } from '../../types';
+import type { Order, OrderType } from '../../types';
 import { 
   TrendingUp, 
   Calendar,
@@ -48,7 +48,7 @@ interface IncomeItem {
   commission: number;
   net_income: number;
   completed_at: string;
-  order_type?: 'text' | 'video';
+  order_type?: OrderType;
   player_name?: string;
 }
 
@@ -223,6 +223,11 @@ const IncomeStats: React.FC = () => {
       currency: 'CNY',
       minimumFractionDigits: 2
     }).format(amount);
+  };
+
+  const formatChartCurrency = (value: unknown) => {
+    const numericValue = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+    return Number.isFinite(numericValue) ? `¥${numericValue.toFixed(2)}` : `¥${String(value ?? '-')}`;
   };
 
   const formatDate = (dateString: string) => {
@@ -487,7 +492,7 @@ const IncomeStats: React.FC = () => {
                     borderRadius: '8px',
                     color: '#fff'
                   }}
-                  formatter={(value: number) => [`¥${value}`, '收益']}
+                  formatter={(value: unknown) => [formatChartCurrency(value), '收益']}
                 />
                 <Area 
                   type="monotone" 
@@ -529,7 +534,7 @@ const IncomeStats: React.FC = () => {
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value: number) => [`¥${value.toFixed(2)}`, '收益']}
+                    formatter={(value: unknown) => [formatChartCurrency(value), '收益']}
                     contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', backgroundColor: '#1f2937', color: '#fff' }}
                   />
                   <Legend verticalAlign="bottom" height={36} />
@@ -570,9 +575,9 @@ const IncomeStats: React.FC = () => {
                   <YAxis yAxisId="left" stroke="#9ca3af" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `¥${v}`} />
                   <YAxis yAxisId="right" orientation="right" stroke="#9ca3af" fontSize={12} tickLine={false} axisLine={false} />
                   <Tooltip
-                    formatter={(value: number, name: string) => [
-                      name === '收益' ? `¥${value.toFixed(2)}` : `${value} 单`,
-                      name
+                    formatter={(value: unknown, name: unknown) => [
+                      name === '收益' ? formatChartCurrency(value) : `${value} 单`,
+                      String(name)
                     ]}
                     contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', backgroundColor: '#1f2937', color: '#fff' }}
                   />

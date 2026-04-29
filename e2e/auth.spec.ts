@@ -35,19 +35,21 @@ test.describe('用户认证流程', () => {
     });
 
     test('演示账号管理员登录应该成功', async ({ page }) => {
+      await page.getByRole('button', { name: /展开测试账号/ }).click();
       // 点击管理员演示账号
-      await page.getByRole('button', { name: /管理员 admin \/ admin123/ }).click();
+      await page.getByRole('button', { name: /平台管理员/ }).click();
       // 等待登录成功并跳转
-      await expect(page).toHaveURL(/.*dashboard/, { timeout: 10000 });
-      // 验证跳转到管理员后台（使用更具体的选择器）
-      await expect(page.getByRole('heading', { name: '管理后台' })).toBeVisible();
+      await expect(page).toHaveURL(/.*admin\/dashboard/, { timeout: 10000 });
+      // 验证跳转到管理员后台当前默认数据看板
+      await expect(page.getByRole('heading', { name: '数据看板' })).toBeVisible();
     });
 
     test('演示账号分析师登录应该成功', async ({ page }) => {
+      await page.getByRole('button', { name: /展开测试账号/ }).click();
       // 点击分析师演示账号
-      await page.getByRole('button', { name: /分析师 analyst \/ analyst123/ }).click();
+      await page.getByRole('button', { name: /陈知远/ }).click();
       // 等待登录成功并跳转
-      await expect(page).toHaveURL(/.*analyst\/dashboard|.*dashboard/, { timeout: 10000 });
+      await expect(page).toHaveURL(/.*analyst\/dashboard/, { timeout: 10000 });
     });
   });
 

@@ -181,6 +181,11 @@ const AnalystDashboard: React.FC = () => {
     return `${Math.floor(seconds / 60)}分钟`;
   };
 
+  const rawRankingPercent = Number(stats.rankingPercent);
+  const hasRankingPercent = Number.isFinite(rawRankingPercent) && rawRankingPercent > 0;
+  const rankingPercent = Math.max(1, Math.min(100, Math.round(rawRankingPercent)));
+  const rankingProgressWidth = hasRankingPercent ? Math.max(5, 100 - rankingPercent) : 0;
+
   const StatCard = ({ title, value, subtext, icon: Icon, color, onClick, extra, breathing }: any) => {
     const colors: any = {
       yellow: { bg: 'from-yellow-500/20 to-yellow-600/10', border: 'border-yellow-500/20', text: 'text-yellow-400', ring: 'focus:ring-yellow-500/50' },
@@ -371,12 +376,12 @@ const AnalystDashboard: React.FC = () => {
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-400">本月排名</span>
-                <span className="text-green-300 font-medium">前 {Math.max(1, Math.min(100, stats.rankingPercent || Math.round((10 - (stats.avgRating || 0)) * 20)))}%</span>
+                <span className="text-green-300 font-medium">{hasRankingPercent ? `前 ${rankingPercent}%` : '暂无排名数据'}</span>
               </div>
               <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(100, Math.max(5, 100 - (stats.rankingPercent || Math.round((10 - (stats.avgRating || 0)) * 20))))}%` }}
+                  style={{ width: `${rankingProgressWidth}%` }}
                 />
               </div>
             </div>
@@ -511,7 +516,7 @@ const AnalystDashboard: React.FC = () => {
 
                   <div className="space-y-6">
                     {/* 结构化评分报告 */}
-                    {viewingReport.overall_rating > 0 ? (
+                    {(viewingReport.overall_rating ?? viewingReport.rating ?? 0) > 0 ? (
                       <>
                         <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700/50">
                           <div className="flex items-center gap-2 mb-4">
@@ -521,7 +526,7 @@ const AnalystDashboard: React.FC = () => {
                           <div className="flex items-center justify-center py-8">
                             <div className="text-center">
                               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center mx-auto mb-2">
-                                <span className="text-3xl font-bold text-white">{viewingReport.overall_rating.toFixed(1)}</span>
+                                <span className="text-3xl font-bold text-white">{(viewingReport.overall_rating ?? viewingReport.rating ?? 0).toFixed(1)}</span>
                               </div>
                               <p className="text-gray-400 text-sm">综合评分</p>
                             </div>

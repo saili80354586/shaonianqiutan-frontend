@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import * as echarts from 'echarts';
+import * as echarts from '../../lib/echarts';
 import { Users, MapPin, Calendar, Star, TrendingUp, Globe, X, ChevronUp } from 'lucide-react';
 import { scoutMapApi } from '../../services/api';
 
@@ -29,7 +29,7 @@ const formatValue = (key: string, value: number) => {
   return value.toLocaleString();
 };
 
-const useEChart = (containerRef: React.RefObject<HTMLDivElement>, option: echarts.EChartsOption) => {
+const useEChart = (containerRef: React.RefObject<HTMLDivElement | null>, option: echarts.EChartsOption) => {
   const chartRef = useRef<echarts.ECharts | null>(null);
 
   useEffect(() => {

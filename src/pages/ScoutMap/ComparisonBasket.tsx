@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { ChevronUp, ChevronDown, X, Download, BarChart3 } from 'lucide-react';
-import ReactECharts from 'echarts-for-react';
+import ReactECharts from '../../components/charts/ReactECharts';
 import { LazyImage } from '../../components';
 import { useScoutMapStore } from './store';
 

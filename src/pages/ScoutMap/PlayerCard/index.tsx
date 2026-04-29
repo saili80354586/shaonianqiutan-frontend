@@ -19,7 +19,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({ player, onClick }) => {
         <div className="relative">
           <LazyImage
             src={player.avatar}
-            alt={player.nickname}
+            alt={player.name}
             className="w-16 h-16 rounded-full object-cover border-2 border-[#39ff14]"
             containerClassName="w-16 h-16"
             onError={() => {
@@ -35,7 +35,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({ player, onClick }) => {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <h4 className="text-[#f8fafc] font-semibold truncate">
-              {player.nickname}
+              {player.name}
             </h4>
             {player.potential === 'A' && (
               <Star className="w-4 h-4 text-[#fbbf24] fill-[#fbbf24]" />

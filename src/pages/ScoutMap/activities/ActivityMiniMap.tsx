@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import * as echarts from 'echarts';
+import * as echarts from '../../../lib/echarts';
 import type { ActivityMapPoint, ActivityType } from './types';
 import { ACTIVITY_TYPE_CONFIG } from './types';
 
@@ -34,6 +34,8 @@ const getCityCoord = (city: string): [number, number] | null => {
 };
 
 const getTypeColor = (type: ActivityType) => ACTIVITY_TYPE_CONFIG[type]?.color || '#39ff14';
+const getPointType = (point: ActivityMapPoint): ActivityType =>
+  point.type || point.activities[0]?.type || 'trial';
 
 const ActivityMiniMapInner: React.FC<Props> = ({ points, onSelectPoint, highlightedActivityId, hoveredActivityId }) => {
   const chartRef = useRef<HTMLDivElement>(null);
@@ -88,9 +90,15 @@ const ActivityMiniMapInner: React.FC<Props> = ({ points, onSelectPoint, highligh
         }
         if (!coord) return null;
         const hasNear = pt.activities.some((a) => new Date(a.startTime).getTime() - now <= threeDays && new Date(a.startTime).getTime() >= now);
+        const activityType = getPointType(pt);
+        const color = getTypeColor(activityType);
         return {
           name: pt.city,
-          value: [...coord, pt.count, pt.city, pt.activities.map((a) => a.title).join('、'), hasNear, pt] as any,
+          value: [...coord, pt.count, pt.city, pt.activities.map((a) => a.title).join('、'), hasNear, pt, activityType] as any,
+          itemStyle: {
+            color,
+            shadowColor: `${color}80`,
+          },
         };
       })
       .filter(Boolean) as any[];
@@ -151,7 +159,7 @@ const ActivityMiniMapInner: React.FC<Props> = ({ points, onSelectPoint, highligh
           type: 'effectScatter',
           coordinateSystem: 'geo',
           data: baseData,
-          symbolSize: (val: any) => Math.min(24, 8 + (val[2] || 1) * 3),
+          symbolSize: (val: any) => Math.min(26, (val[5] ? 12 : 8) + (val[2] || 1) * 3),
           showEffectOn: 'render',
           rippleEffect: {
             brushType: 'stroke',
@@ -159,12 +167,7 @@ const ActivityMiniMapInner: React.FC<Props> = ({ points, onSelectPoint, highligh
             period: 4,
           },
           itemStyle: {
-            color: (params: any) => {
-              const isNear = params.data.value[5];
-              return isNear ? '#ff4d4f' : '#39ff14';
-            },
             shadowBlur: 10,
-            shadowColor: 'rgba(57, 255, 20, 0.5)',
           },
           emphasis: {
             scale: true,

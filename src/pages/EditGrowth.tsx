@@ -4,7 +4,7 @@ import { userApi, unwrapApiResponse } from '../services/api';
 import { useAuthStore } from '../store';
 import { Loading } from '../components';
 import type { GrowthRecord } from '../types';
-import * as echarts from 'echarts';
+import * as echarts from '../lib/echarts';
 
 const EditGrowth: React.FC = () => {
   const navigate = useNavigate();

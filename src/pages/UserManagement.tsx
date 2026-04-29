@@ -25,16 +25,16 @@ const UserManagement: React.FC = () => {
       const response = await adminApi.listUsers({ page: currentPage, pageSize });
       const payload = unwrapApiResponse(response);
       if (payload.success && payload.data) {
-        let filteredUsers = payload.data.list;
+        let filteredUsers: User[] = payload.data.list || [];
         
         // 状态筛选
         if (statusFilter !== 'all') {
-          filteredUsers = filteredUsers.filter(u => u.status === statusFilter);
+          filteredUsers = filteredUsers.filter((u: User) => u.status === statusFilter);
         }
         
         // 搜索筛选
         if (searchQuery) {
-          filteredUsers = filteredUsers.filter(u => 
+          filteredUsers = filteredUsers.filter((u: User) =>
             (u.nickname?.toLowerCase().includes(searchQuery.toLowerCase()) || false) ||
             u.phone?.includes(searchQuery)
           );
@@ -69,7 +69,7 @@ const UserManagement: React.FC = () => {
     }
 
     try {
-      await adminApi.updateUserStatus(user.id.toString(), newStatus);
+      await adminApi.updateUserStatus(user.id, newStatus);
       setUsers(users.map(u => u.id === user.id ? { ...u, status: newStatus } : u));
       alert(`${actionText}成功`);
     } catch (error) {
@@ -84,7 +84,7 @@ const UserManagement: React.FC = () => {
     }
 
     try {
-      await adminApi.deleteUser(user.id.toString());
+      await adminApi.deleteUser(user.id);
       setUsers(users.filter(u => u.id !== user.id));
       alert('删除成功');
     } catch (error) {

@@ -1,22 +1,21 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { analystApi, videoAnalysisApi } from '../../../services/api';
+import { videoAnalysisApi } from '../../../services/api';
 import type { 
   Order, 
   VideoAnalysis, 
   VideoAnalysisScores, 
   AnalysisHighlight,
-  UpdateScoresRequest,
   CreateHighlightRequest,
-  AIReportResponse 
-} from '../../types';
+  RatingDimension,
+} from '../../../types';
 import { toast } from 'sonner';
 import {
   ChevronLeft, Play, Pause, Volume2, VolumeX, Save, Send, 
-  Sparkles, CheckCircle, AlertCircle, AlertTriangle, X, Plus, Star, Trophy,
+  Sparkles, CheckCircle, AlertTriangle, X, Plus, Star, Trophy,
   Zap, Shield, Target, Users, Activity, Eye, Footprints, Wind, Compass, 
   ArrowRight, Swords, TrendingUp, Crosshair, MessageSquare, 
-  UserCheck, ShieldCheck, Timer, RefreshCw, Gauge, Flame, Crown,
+  UserCheck, ShieldCheck, Timer, RefreshCw, Flame,
   Minimize2, Maximize2
 } from 'lucide-react';
 
@@ -809,15 +808,22 @@ const VideoAnalysisWorkspace: React.FC<Props> = ({ order, onComplete, onCancel }
                       <span className="text-xs font-semibold text-slate-300 uppercase tracking-wide">整体维度</span>
                       <span className="text-[11px] text-slate-500">4 项</span>
                     </div>
-                    {OVERALL_CONFIG.map((dim, i) => (
-                      <ScoreRow key={dim.key} {...dim}
-                        index={i}
-                        value={scores.overall?.[dim.key]?.score ?? 7}
-                        comment={scores.overall?.[dim.key]?.comment ?? ''}
-                        onScoreChange={(v) => uOS(dim.key as any, v)}
-                        onCommentChange={(c) => uOC(dim.key as any, c)}
-                      />
-                    ))}
+                    {OVERALL_CONFIG.map((dim, i) => {
+                      const scoreKey = dim.key as keyof VideoAnalysisScores['overall'];
+                      return (
+                        <ScoreRow
+                          key={dim.key}
+                          label={dim.label}
+                          desc={dim.desc}
+                          icon={dim.icon}
+                          index={i}
+                          value={scores.overall?.[scoreKey]?.score ?? 7}
+                          comment={scores.overall?.[scoreKey]?.comment ?? ''}
+                          onScoreChange={(v) => uOS(scoreKey, v)}
+                          onCommentChange={(c) => uOC(scoreKey, c)}
+                        />
+                      );
+                    })}
                   </motion.div>
                 )}
 
@@ -836,15 +842,22 @@ const VideoAnalysisWorkspace: React.FC<Props> = ({ order, onComplete, onCancel }
                       <span className="text-xs font-semibold text-slate-300 uppercase tracking-wide">进攻分析</span>
                       <span className="text-[11px] text-slate-500">8 项</span>
                     </div>
-                    {OFFENSE_CONFIG.map((dim, i) => (
-                      <ScoreRow key={dim.key} {...dim}
-                        index={i}
-                        value={scores.offense?.[dim.key]?.score ?? 7}
-                        comment={scores.offense?.[dim.key]?.comment ?? ''}
-                        onScoreChange={(v) => uFS(dim.key as any, v)}
-                        onCommentChange={(c) => uFC(dim.key as any, c)}
-                      />
-                    ))}
+                    {OFFENSE_CONFIG.map((dim, i) => {
+                      const scoreKey = dim.key as keyof VideoAnalysisScores['offense'];
+                      return (
+                        <ScoreRow
+                          key={dim.key}
+                          label={dim.label}
+                          desc={dim.desc}
+                          icon={dim.icon}
+                          index={i}
+                          value={scores.offense?.[scoreKey]?.score ?? 7}
+                          comment={scores.offense?.[scoreKey]?.comment ?? ''}
+                          onScoreChange={(v) => uFS(scoreKey, v)}
+                          onCommentChange={(c) => uFC(scoreKey, c)}
+                        />
+                      );
+                    })}
                   </motion.div>
                 )}
 
@@ -863,15 +876,22 @@ const VideoAnalysisWorkspace: React.FC<Props> = ({ order, onComplete, onCancel }
                       <span className="text-xs font-semibold text-slate-300 uppercase tracking-wide">防守分析</span>
                       <span className="text-[11px] text-slate-500">8 项</span>
                     </div>
-                    {DEFENSE_CONFIG.map((dim, i) => (
-                      <ScoreRow key={dim.key} {...dim}
-                        index={i}
-                        value={scores.defense?.[dim.key]?.score ?? 7}
-                        comment={scores.defense?.[dim.key]?.comment ?? ''}
-                        onScoreChange={(v) => uDS(dim.key as any, v)}
-                        onCommentChange={(c) => uDC(dim.key as any, c)}
-                      />
-                    ))}
+                    {DEFENSE_CONFIG.map((dim, i) => {
+                      const scoreKey = dim.key as keyof VideoAnalysisScores['defense'];
+                      return (
+                        <ScoreRow
+                          key={dim.key}
+                          label={dim.label}
+                          desc={dim.desc}
+                          icon={dim.icon}
+                          index={i}
+                          value={scores.defense?.[scoreKey]?.score ?? 7}
+                          comment={scores.defense?.[scoreKey]?.comment ?? ''}
+                          onScoreChange={(v) => uDS(scoreKey, v)}
+                          onCommentChange={(c) => uDC(scoreKey, c)}
+                        />
+                      );
+                    })}
                   </motion.div>
                 )}
 

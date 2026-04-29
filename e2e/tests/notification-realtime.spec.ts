@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
+import { APP_BASE_URL } from '../config';
 
-const APP_BASE = 'http://localhost:5173';
 const PASSWORD = '123456';
 
 async function loginByPhone(page: Page, phone: string, expectedPath: RegExp) {
@@ -76,8 +76,8 @@ function findFollowNotificationFrame(frames: string[]) {
 
 test.describe('通知实时推送专项 E2E', () => {
   test('关注通知通过 WebSocket 实时到达在线用户', async ({ browser }) => {
-    const recipientContext = await browser.newContext({ baseURL: APP_BASE });
-    const actorContext = await browser.newContext({ baseURL: APP_BASE });
+    const recipientContext = await browser.newContext({ baseURL: APP_BASE_URL });
+    const actorContext = await browser.newContext({ baseURL: APP_BASE_URL });
     const recipientPage = await recipientContext.newPage();
     const actorPage = await actorContext.newPage();
 

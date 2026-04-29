@@ -1,23 +1,24 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, { Suspense, lazy, useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, Users, Calendar, Filter, Map, Layers, BarChart3, Globe, Trophy, Crosshair, GitCommit, Shield, Hand, AlertTriangle, Sparkles } from 'lucide-react';
+import { MapPin, Users, Calendar, Filter, Map, Layers, BarChart3, Globe, Trophy, Crosshair, GitCommit, Shield, Hand, AlertTriangle, Sparkles, X } from 'lucide-react';
 import MapContainer from './MapContainer';
 import Breadcrumb from './Breadcrumb';
 import { CountryList, ProvinceList, CityList } from './Lists';
 import type { Player, ProvinceStats, Level, MapLayer, EntityLayer } from './data';
 import { getPanelStats, LAYER_CONFIG, ENTITY_LAYER_CONFIG, ENTITY_LAYER_LABELS } from './data';
 import { scoutMapApi } from '../../services/api';
-import PlayerDetailDrawer from './PlayerDetailDrawer';
-import ComparisonBasket from './ComparisonBasket';
 import { useScoutMapStore } from './store';
-import DashboardSection from './DashboardSection';
 import PlayerRankView from './PlayerRankView';
 import RecommendationSection from './RecommendationSection';
 import { useAuthStore } from '../../store/useAuthStore';
 import SocialFeed from './SocialFeed';
 import RisingStarSection from './RisingStarSection';
 import OverseasPlayersSection from './OverseasPlayersSection';
-import RecentActivitiesSection from './activities/RecentActivitiesSection';
+
+const PlayerDetailDrawer = lazy(() => import('./PlayerDetailDrawer'));
+const ComparisonBasket = lazy(() => import('./ComparisonBasket'));
+const DashboardSection = lazy(() => import('./DashboardSection'));
+const RecentActivitiesSection = lazy(() => import('./activities/RecentActivitiesSection'));
 
 interface RawProvince {
   provinceName?: string; name?: string; playerCount?: number; count?: number;
@@ -938,8 +939,10 @@ const ScoutMap: React.FC = () => {
               近期活动
             </button>
           </div>
-          {screen2Tab === 'insights' && <DashboardSection variant="embedded" />}
-          {screen2Tab === 'activities' && <RecentActivitiesSection />}
+          <Suspense fallback={<div className="min-h-[320px] rounded-2xl border border-[#2d3748] bg-[#1a2332]/40 animate-pulse" />}>
+            {screen2Tab === 'insights' && <DashboardSection variant="embedded" />}
+            {screen2Tab === 'activities' && <RecentActivitiesSection />}
+          </Suspense>
         </div>
       </section>
 
@@ -976,7 +979,7 @@ const ScoutMap: React.FC = () => {
             </h2>
             <p className="text-sm text-[#94a3b8] mt-1">海外球员、个性化推荐与排名</p>
           </div>
-          <OverseasPlayersSection />
+          <OverseasPlayersSection onSelectPlayer={handleSelectPlayer} />
           <div className="mt-10">
             <RecommendationSection onSelectPlayer={handleSelectPlayer} />
           </div>
@@ -988,9 +991,11 @@ const ScoutMap: React.FC = () => {
         </div>
       </section>
 
-      <PlayerDetailDrawer player={selectedPlayer} isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
-      <ComparisonBasket />
-      {isDashboardOpen && <DashboardSection onClose={() => setIsDashboardOpen(false)} />}
+      <Suspense fallback={null}>
+        {selectedPlayer && <PlayerDetailDrawer player={selectedPlayer} isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />}
+        {selectedPlayers.length > 0 && <ComparisonBasket />}
+        {isDashboardOpen && <DashboardSection onClose={() => setIsDashboardOpen(false)} />}
+      </Suspense>
       {isMyRankOpen && <PlayerRankView isVisible onClose={() => setIsMyRankOpen(false)} />}
     </div>
   );

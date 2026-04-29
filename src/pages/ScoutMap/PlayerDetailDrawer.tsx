@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { X, MapPin, Calendar, Ruler, Weight, Footprints, Star, FileText, Phone, Lock, BarChart3, Trophy, ExternalLink, Heart, Eye, Plus, Check, Edit3, Send, Bookmark, Share2, LogIn, UserCog } from 'lucide-react';
 import { LazyImage } from '../../components';
 import { toast } from 'sonner';
-import ReactECharts from 'echarts-for-react';
+import ReactECharts from '../../components/charts/ReactECharts';
 import type { Player } from './data';
 import type { MapProfileData } from './store';
 import { useScoutMapStore } from './store';
@@ -21,16 +21,17 @@ interface PlayerDetailDrawerProps {
   onClose: () => void;
 }
 
-const buildMockProfile = (player: Player): MapProfileData => ({
+const buildBaseProfile = (player: Player): MapProfileData => ({
   id: Number(player.id), name: player.name, avatar: player.avatar, city: player.city, province: player.province,
-  age: player.age, position: player.position, club: '深圳少年队',
-  tags: player.tags?.length ? player.tags : ['速度型', '突破强'],
-  score: player.score ?? player.rating ?? 0, potential: player.potential || 'B',
-  heat: { views7d: 23, followers: 2 },
-  radar: { visible: true, dimensions: ['速度', '技术', '身体', '战术', '心理', '潜力'], values: [85, 78, 80, 75, 82, 88] },
-  physical: { visible: true, items: [{ name: '30m冲刺', value: '4.8s', percentile: 78 }, { name: '立定跳远', value: '1.95m', percentile: 85 }, { name: '俯卧撑', value: '32个', percentile: 72 }] },
-  timeline: [{ date: '2026-04-10', type: 'match', title: '春季联赛 vs 广州青训', summary: '打进1球，获评全场最佳' }, { date: '2026-03-28', type: 'test', title: '月度体测更新', summary: '30m冲刺提升0.2s' }, { date: '2026-03-15', type: 'honor', title: 'U12最佳射手', summary: '单月打入12球' }],
-  reports: player.hasReport ? [{ id: 101, type: 'ai', author: 'AI分析师', score: 82, summary: '突破能力强，建议加强逆足训练' }] : [],
+  age: player.age, position: player.position, club: typeof player.extra?.club === 'string' ? player.extra.club : '',
+  tags: player.tags?.length ? player.tags : [],
+  score: player.score ?? player.rating ?? 0, potential: player.potential || '待评估',
+  scoreBreakdown: player.extra?.scoreBreakdown as MapProfileData['scoreBreakdown'] | undefined,
+  heat: { views7d: 0, followers: 0 },
+  radar: { visible: false, dimensions: [], values: [] },
+  physical: { visible: false, items: [] },
+  timeline: [],
+  reports: [],
   permissions: { canViewRadar: false, canViewPhysical: false, canViewReports: false, canContact: false },
 });
 
@@ -49,6 +50,22 @@ const buildRadarOption = (profile: MapProfileData | null) => {
   };
 };
 
+const scoreSourceLabel: Record<string, string> = {
+  latest_physical_test: '体测',
+  published_scout_reports: '球探报告',
+  data_completeness: '完整度',
+};
+
+const formatConfidence = (confidence?: number) => {
+  if (typeof confidence !== 'number' || Number.isNaN(confidence)) return '—';
+  return `${Math.round(confidence * 100)}%`;
+};
+
+const formatCoverage = (coverage?: number) => {
+  if (typeof coverage !== 'number' || Number.isNaN(coverage)) return '—';
+  return `${Math.round(coverage)}%`;
+};
+
 const LockedOverlay: React.FC<{ title: string; subtitle?: string }> = ({ title, subtitle }) => (
   <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0e17]/70 backdrop-blur-[1px] rounded-xl">
     <div className="w-12 h-12 rounded-full bg-[#1a2332] border border-[#2d3748] flex items-center justify-center mb-3">
@@ -63,6 +80,7 @@ const PlayerDetailDrawer: React.FC<PlayerDetailDrawerProps> = ({ player, isOpen,
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [profile, setProfile] = useState<MapProfileData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [trialModalOpen, setTrialModalOpen] = useState(false);
   const { currentRole, isAuthenticated } = useAuthStore();
@@ -78,12 +96,23 @@ const PlayerDetailDrawer: React.FC<PlayerDetailDrawerProps> = ({ player, isOpen,
       queueMicrotask(() => {
         setActiveTab('overview');
         setLoading(true);
+        setProfileError(null);
       });
       http.get(`/scout/players/${player.userId}/map-profile`)
-        .then((res) => { const d = res.data?.success ? (res.data.data as MapProfileData) : buildMockProfile(player); setProfile(d); })
-        .catch(() => setProfile(buildMockProfile(player)))
+        .then((res) => {
+          if (res.data?.success) {
+            setProfile(res.data.data as MapProfileData);
+          } else {
+            setProfileError(res.data?.error?.message || '球员详情加载失败');
+            setProfile(buildBaseProfile(player));
+          }
+        })
+        .catch((error) => {
+          setProfileError(error?.message || '球员详情加载失败');
+          setProfile(buildBaseProfile(player));
+        })
         .finally(() => setLoading(false));
-    } else { queueMicrotask(() => setProfile(null)); }
+    } else { queueMicrotask(() => { setProfile(null); setProfileError(null); }); }
   }, [isOpen, player]);
 
   const handleAddToShortlist = async () => {
@@ -138,7 +167,7 @@ const PlayerDetailDrawer: React.FC<PlayerDetailDrawerProps> = ({ player, isOpen,
 
   if (!isOpen || !player) return null;
   const initial = player.name ? player.name.charAt(0) : '?';
-  const dp = profile || buildMockProfile(player);
+  const dp = profile || buildBaseProfile(player);
 
   return (
     <>
@@ -234,8 +263,64 @@ const PlayerDetailDrawer: React.FC<PlayerDetailDrawerProps> = ({ player, isOpen,
               </div>
 
               <div className="bg-gradient-to-br from-[rgba(57,255,20,0.08)] to-transparent border border-[#2d3748] rounded-xl p-5">
-                <div className="flex items-center justify-between mb-4"><div className="flex items-center gap-2 text-[#f8fafc] font-medium"><Star className="w-4 h-4 text-[#fbbf24]" />综合能力</div><div className="text-2xl font-bold text-[#39ff14]">{player.score ?? player.rating ?? '—'}</div></div>
-                <div className="flex items-center gap-2 text-sm text-[#94a3b8]"><span>潜力评级</span><span className="px-2 py-0.5 bg-[rgba(0,212,255,0.1)] text-[#00d4ff] rounded text-xs font-semibold">{player.potential || 'B'}</span></div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2 text-[#f8fafc] font-medium"><Star className="w-4 h-4 text-[#fbbf24]" />综合能力</div>
+                  <div className="text-2xl font-bold text-[#39ff14]">{dp.score > 0 ? dp.score : '—'}</div>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-[#94a3b8]">
+                  <span>潜力评级</span>
+                  <span className="px-2 py-0.5 bg-[rgba(0,212,255,0.1)] text-[#00d4ff] rounded text-xs font-semibold">{dp.potential || '待评估'}</span>
+                </div>
+                {dp.scoreBreakdown && (
+                  <div className="mt-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-lg border border-[#2d3748] bg-[#111827]/70 px-3 py-2">
+                        <div className="text-[#64748b]">评分版本</div>
+                        <div className="mt-1 text-[#f8fafc]">{dp.scoreBreakdown.formulaVersion}</div>
+                      </div>
+                      <div className="rounded-lg border border-[#2d3748] bg-[#111827]/70 px-3 py-2">
+                        <div className="text-[#64748b]">适用基准</div>
+                        <div className="mt-1 text-[#f8fafc]">{dp.scoreBreakdown.benchmarkGroup || '—'}</div>
+                      </div>
+                      <div className="rounded-lg border border-[#2d3748] bg-[#111827]/70 px-3 py-2">
+                        <div className="text-[#64748b]">置信度</div>
+                        <div className="mt-1 text-[#f8fafc]">{formatConfidence(dp.scoreBreakdown.confidence)}</div>
+                      </div>
+                      <div className="rounded-lg border border-[#2d3748] bg-[#111827]/70 px-3 py-2">
+                        <div className="text-[#64748b]">体测覆盖</div>
+                        <div className="mt-1 text-[#f8fafc]">{formatCoverage(dp.scoreBreakdown.metricCoverage)}</div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {dp.scoreBreakdown.sources.map((source) => (
+                        <span key={source} className="rounded-full border border-[#2d3748] bg-[#111827] px-2.5 py-1 text-xs text-[#94a3b8]">
+                          {scoreSourceLabel[source] || source}
+                        </span>
+                      ))}
+                    </div>
+                    {dp.scoreBreakdown.components.length > 0 && (
+                      <div className="space-y-2">
+                        {dp.scoreBreakdown.components.map((component) => (
+                          <div key={component.source} className="flex items-start justify-between gap-3 text-xs">
+                            <div>
+                              <div className="text-[#f8fafc]">{component.label}</div>
+                              {component.description && <div className="text-[#64748b]">{component.description}</div>}
+                            </div>
+                            <div className="text-right">
+                              <div className="font-semibold text-[#39ff14]">{component.score.toFixed(1)}</div>
+                              <div className="text-[#64748b]">{Math.round(component.weight * 100)}%</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {dp.scoreBreakdown.missingMetrics && dp.scoreBreakdown.missingMetrics.length > 0 && (
+                      <div className="text-xs text-[#64748b]">
+                        缺失项：{dp.scoreBreakdown.missingMetrics.slice(0, 4).join('、')}{dp.scoreBreakdown.missingMetrics.length > 4 ? '等' : ''}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="border-b border-[#2d3748]">
@@ -249,17 +334,29 @@ const PlayerDetailDrawer: React.FC<PlayerDetailDrawerProps> = ({ player, isOpen,
                 </div>
               </div>
 
+              {profileError && (
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                  {profileError}
+                </div>
+              )}
+
               {activeTab === 'overview' && (
                 <div className="space-y-5">
                   <div className="relative bg-[#1a2332] border border-[#2d3748] rounded-xl p-4">
                     <div className="flex items-center gap-2 text-[#f8fafc] font-medium mb-3"><BarChart3 className="w-4 h-4 text-[#94a3b8]" />能力雷达图</div>
-                    <div className="h-56"><ReactECharts option={radarOption} style={{ height: '100%' }} /></div>
-                    {!dp.permissions.canViewRadar && <LockedOverlay title="开通会员查看完整雷达图" subtitle="包含6大维度深度分析" />}
+                    {dp.radar.visible && dp.radar.dimensions.length > 0 ? (
+                      <div className="h-56"><ReactECharts option={radarOption} style={{ height: '100%' }} /></div>
+                    ) : (
+                      <div className="h-56 flex items-center justify-center text-sm text-[#94a3b8]">暂无真实能力雷达数据</div>
+                    )}
+                    {dp.radar.visible && !dp.permissions.canViewRadar && <LockedOverlay title="开通会员查看完整雷达图" subtitle="包含6大维度深度分析" />}
                   </div>
                   <div className="relative bg-[#1a2332] border border-[#2d3748] rounded-xl p-4">
                     <div className="flex items-center gap-2 text-[#f8fafc] font-medium mb-3"><Trophy className="w-4 h-4 text-[#94a3b8]" />体测数据</div>
                     <div className="space-y-3">
-                      {dp.physical.items.map((item) => {
+                      {dp.physical.items.length === 0 ? (
+                        <div className="py-6 text-center text-sm text-[#94a3b8]">暂无真实体测数据</div>
+                      ) : dp.physical.items.map((item) => {
                         // 体测项名称 → API key 映射
                         const nameToKey: Record<string, string> = {
                           '30m冲刺': 'sprint_30m',
@@ -289,14 +386,16 @@ const PlayerDetailDrawer: React.FC<PlayerDetailDrawerProps> = ({ player, isOpen,
                         );
                       })}
                     </div>
-                    {!dp.permissions.canViewPhysical && <LockedOverlay title="开通会员查看完整体测数据" subtitle="包含同龄百分位对比" />}
+                    {dp.physical.items.length > 0 && !dp.permissions.canViewPhysical && <LockedOverlay title="开通会员查看完整体测数据" subtitle="包含同龄百分位对比" />}
                   </div>
                 </div>
               )}
 
               {activeTab === 'timeline' && (
                 <div className="space-y-4">
-                  {dp.timeline.map((item, idx) => (
+                  {dp.timeline.length === 0 ? (
+                    <div className="py-8 text-center text-sm text-[#94a3b8]">暂无真实成长轨迹</div>
+                  ) : dp.timeline.map((item, idx) => (
                     <div key={idx} className="flex gap-3">
                       <div className="flex flex-col items-center">
                         <div className={`w-2 h-2 rounded-full ${item.type === 'match' ? 'bg-[#39ff14]' : item.type === 'test' ? 'bg-[#00d4ff]' : 'bg-[#fbbf24]'}`} />
@@ -316,16 +415,12 @@ const PlayerDetailDrawer: React.FC<PlayerDetailDrawerProps> = ({ player, isOpen,
               {activeTab === 'reports' && (
                 <div className="space-y-4">
                   {!dp.permissions.canViewReports ? (
-                    <div className="relative bg-[#1a2332] border border-[#2d3748] rounded-xl p-8 text-center overflow-hidden">
-                      <LockedOverlay title="高阶权限可见" subtitle="开通会员或申请认证角色查看" />
-                      <div className="blur-sm">
-                        <div className="text-left space-y-3">
-                          <div className="p-3 bg-[#111827] rounded-lg border border-[#2d3748]">
-                            <div className="text-sm font-medium text-[#f8fafc]">AI分析师 · 评分 82</div>
-                            <div className="text-xs text-[#94a3b8] mt-1">突破能力强，建议加强逆足训练</div>
-                          </div>
-                        </div>
+                    <div className="bg-[#1a2332] border border-[#2d3748] rounded-xl p-8 text-center">
+                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#111827] border border-[#2d3748]">
+                        <Lock className="w-5 h-5 text-[#fbbf24]" />
                       </div>
+                      <div className="text-sm font-medium text-[#f8fafc]">高阶权限可见</div>
+                      <div className="mt-1 text-xs text-[#94a3b8]">开通会员或申请认证角色查看</div>
                     </div>
                   ) : dp.reports.length === 0 ? (
                     <div className="text-center py-8 text-[#94a3b8]">
@@ -346,7 +441,7 @@ const PlayerDetailDrawer: React.FC<PlayerDetailDrawerProps> = ({ player, isOpen,
               )}
 
               <div className="relative overflow-hidden rounded-xl border border-[#2d3748] bg-[#1a2332]">
-                <div className="p-5"><div className="flex items-center gap-2 text-[#f8fafc] font-medium mb-3"><Phone className="w-4 h-4 text-[#94a3b8]" />联系方式</div><p className="text-sm text-[#94a3b8]">家长电话：{player.phone || '138****8888'}</p></div>
+                <div className="p-5"><div className="flex items-center gap-2 text-[#f8fafc] font-medium mb-3"><Phone className="w-4 h-4 text-[#94a3b8]" />联系方式</div><p className="text-sm text-[#94a3b8]">家长电话：{player.phone || '暂无联系方式'}</p></div>
                 {!dp.permissions.canContact && <LockedOverlay title="会员专享" subtitle="升级后即可获取联系方式" />}
               </div>
             </div>

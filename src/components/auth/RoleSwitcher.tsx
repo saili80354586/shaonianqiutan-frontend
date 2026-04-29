@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserRole, ROLE_CONFIG, RoleInfo } from '../../types/auth';
-import { Users, BarChart3, Building2, GraduationCap, Search, ChevronDown, Plus, Check } from 'lucide-react';
+import type { UserRole, RoleInfo } from '../../types/auth';
+import { ROLE_CONFIG } from '../../types/auth';
+import { Users, BarChart3, Building2, GraduationCap, Search, ChevronDown, Plus, Check, Shield } from 'lucide-react';
 
 interface RoleSwitcherProps {
   currentRole: UserRole;
@@ -15,6 +16,7 @@ const iconMap: Record<string, React.ElementType> = {
   Building2,
   GraduationCap,
   Search,
+  Shield,
 };
 
 const RoleSwitcher: React.FC<RoleSwitcherProps> = ({ currentRole, roles, onRoleChange }) => {
@@ -51,7 +53,9 @@ const RoleSwitcher: React.FC<RoleSwitcherProps> = ({ currentRole, roles, onRoleC
     // 根据角色跳转
     const rolePaths: Record<UserRole, string> = {
       player: '/dashboard',
+      user: '/dashboard',
       analyst: '/analyst/dashboard',
+      admin: '/admin',
       club: '/club/dashboard',
       coach: '/coach/dashboard',
       scout: '/scout/dashboard',

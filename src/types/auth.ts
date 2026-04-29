@@ -1,7 +1,7 @@
 // 认证相关类型定义
 
 // 用户角色类型 (与后端 models/user.go 保持一致)
-export type UserRole = 'user' | 'analyst' | 'admin' | 'club' | 'coach' | 'scout';
+export type UserRole = 'player' | 'user' | 'analyst' | 'admin' | 'club' | 'coach' | 'scout';
 
 // 角色状态
 export type RoleStatus = 'active' | 'pending' | 'rejected' | 'suspended' | 'none';
@@ -209,6 +209,14 @@ export const ROLE_CONFIG: Record<UserRole, RoleInfo> = {
     color: 'from-emerald-500 to-teal-500',
     requiresAudit: false,
   },
+  user: {
+    type: 'user',
+    label: '球员',
+    icon: 'Users',
+    description: '上传视频，获取专业分析报告',
+    color: 'from-emerald-500 to-teal-500',
+    requiresAudit: false,
+  },
   analyst: {
     type: 'analyst',
     label: '分析师',
@@ -240,6 +248,14 @@ export const ROLE_CONFIG: Record<UserRole, RoleInfo> = {
     description: '发掘潜力球员，撰写球探报告',
     color: 'from-violet-500 to-purple-500',
     requiresAudit: true,
+  },
+  admin: {
+    type: 'admin',
+    label: '管理员',
+    icon: 'Shield',
+    description: '管理平台配置、审核与运营数据',
+    color: 'from-slate-500 to-slate-700',
+    requiresAudit: false,
   },
 };
 

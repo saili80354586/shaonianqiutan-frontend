@@ -87,16 +87,18 @@ export function NotificationCenter({ onUnreadChange }: NotificationCenterProps) 
     const unsubscribe = wsService.subscribe((payload: NotificationPayload) => {
       const newNotification: NotificationItem = {
         id: payload.id,
+        user_id: 0,
         type: payload.type as NotificationType,
         title: payload.title,
         content: payload.content,
         is_read: false,
+        priority: 2,
         created_at: payload.created_at,
         data: payload.data,
       };
 
       setNotifications((prev) => [newNotification, ...prev]);
-      onUnreadChange?.((prev: number) => prev + 1);
+      fetchUnreadCount();
     });
 
     wsService.connect();
@@ -107,7 +109,7 @@ export function NotificationCenter({ onUnreadChange }: NotificationCenterProps) 
   const fetchUnreadCount = async () => {
     try {
       const res = await notificationApi.getUnreadCount();
-      const count = res.data?.count || 0;
+      const count = res.data?.data?.count ?? res.data?.count ?? 0;
       onUnreadChange?.(count);
     } catch (error) {
       console.error('获取未读数失败:', error);
@@ -136,7 +138,7 @@ export function NotificationCenter({ onUnreadChange }: NotificationCenterProps) 
       setNotifications((prev) =>
         prev.map((n) => (n.id === notification.id ? { ...n, is_read: true } : n))
       );
-      onUnreadChange?.((prev: number) => Math.max(0, prev - 1));
+      fetchUnreadCount();
     } catch (error) {
       console.error('标记已读失败:', error);
     }
@@ -180,7 +182,7 @@ export function NotificationCenter({ onUnreadChange }: NotificationCenterProps) 
             : n
         )
       );
-      onUnreadChange?.((prev: number) => Math.max(0, prev - 1));
+      fetchUnreadCount();
     } catch (error: any) {
       const msg = getErrorMessage(error, '接受邀请失败');
       toast.error(msg);
@@ -224,7 +226,7 @@ export function NotificationCenter({ onUnreadChange }: NotificationCenterProps) 
             : n
         )
       );
-      onUnreadChange?.((prev: number) => Math.max(0, prev - 1));
+      fetchUnreadCount();
     } catch (error: any) {
       const msg = getErrorMessage(error, '拒绝邀请失败');
       toast.error(msg);
@@ -426,12 +428,13 @@ export function NotificationCenter({ onUnreadChange }: NotificationCenterProps) 
         return notification.title || '比赛已结束，请填写点评';
       case 'match_summary_complete':
         return notification.title || '比赛总结已完成';
-      case 'invitation':
+      case 'invitation': {
         const displayName = notification.data?.team_name || notification.data?.club_name;
         if (displayName) {
           return `${notification.title || '收到邀请'}：${displayName}`;
         }
         return notification.title || '收到新的邀请';
+      }
       default:
         return notification.content || notification.title;
     }
@@ -641,9 +644,9 @@ export function NotificationCenter({ onUnreadChange }: NotificationCenterProps) 
                             报告：{notification.data.report_title}
                           </p>
                         )}
-                        {notification.data?.message_preview && (
+                        {(notification.data as { message_preview?: string } | undefined)?.message_preview && (
                           <p className="mt-1.5 text-xs text-slate-500 line-clamp-2 bg-white/[0.02] rounded-lg px-2.5 py-1.5 border border-white/5">
-                            {notification.data.message_preview}
+                            {(notification.data as { message_preview?: string }).message_preview}
                           </p>
                         )}
 
@@ -782,7 +785,7 @@ export function NotificationBadge() {
   const fetchUnreadCount = async () => {
     try {
       const res = await notificationApi.getUnreadCount();
-      setUnreadCount(res.data?.count || 0);
+      setUnreadCount(res.data?.data?.count ?? res.data?.count ?? 0);
     } catch (error) {
       console.error('获取未读数失败:', error);
     }

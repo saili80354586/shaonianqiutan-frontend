@@ -47,6 +47,7 @@ export interface ActivityRegistration {
 export interface ActivityMapPoint {
   province: string;
   city: string;
+  type: ActivityType;
   lng: number;
   lat: number;
   count: number;

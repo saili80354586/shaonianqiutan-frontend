@@ -33,8 +33,8 @@ export function CommentSection({
   const loadComments = async () => {
     try {
       const res = await socialApi.getComments({
-        targetType,
-        targetId,
+        target_type: targetType,
+        target_id: targetId,
         page: 1,
         pageSize: 50,
       });

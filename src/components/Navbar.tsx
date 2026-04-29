@@ -604,7 +604,7 @@ const Navbar: React.FC = () => {
                           player: '球员',
                           user: '球员'
                         };
-                        return roleMap[role] || '球员';
+                        return roleMap[role || ''] || '球员';
                       })()}
                     </p>
                   </div>

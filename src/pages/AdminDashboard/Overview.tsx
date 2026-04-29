@@ -203,7 +203,10 @@ const Overview: React.FC = () => {
               <XAxis dataKey="date" stroke="#64748b" fontSize={12} />
               <YAxis stroke="#64748b" fontSize={12} />
               <Tooltip
-                formatter={(value: number) => `¥${value.toLocaleString()}`}
+                formatter={(value: unknown) => {
+                  const numericValue = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+                  return Number.isFinite(numericValue) ? `¥${numericValue.toLocaleString()}` : `¥${String(value ?? '-')}`;
+                }}
                 contentStyle={{ backgroundColor: '#0f1419', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }}
               />
               <Area type="monotone" dataKey="revenue" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={2} />
@@ -241,7 +244,7 @@ const Overview: React.FC = () => {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"

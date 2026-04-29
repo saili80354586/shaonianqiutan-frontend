@@ -13,6 +13,7 @@ export interface MapProfileData {
   tags: string[];
   score: number;
   potential: string;
+  scoreBreakdown?: PlayerScoreBreakdown;
   heat: { views7d: number; followers: number };
   radar: {
     visible: boolean;
@@ -31,6 +32,43 @@ export interface MapProfileData {
     canViewReports: boolean;
     canContact: boolean;
   };
+}
+
+export interface PlayerScoreMetric {
+  key?: string;
+  label: string;
+  value: string;
+  score: number;
+  direction?: string;
+  percentile?: number;
+  benchmark?: string;
+  benchmarkGroup?: string;
+}
+
+export interface PlayerScoreComponent {
+  label: string;
+  source: string;
+  score: number;
+  weight: number;
+  count?: number;
+  description?: string;
+}
+
+export interface PlayerScoreBreakdown {
+  score: number;
+  potential: string;
+  hasScore: boolean;
+  dataCoverage: number;
+  expectedMetricCount?: number;
+  metricCoverage?: number;
+  confidence?: number;
+  benchmarkGroup?: string;
+  formulaVersion: string;
+  sources: string[];
+  components: PlayerScoreComponent[];
+  metrics: PlayerScoreMetric[];
+  missingMetrics?: string[];
+  notes?: string[];
 }
 
 interface ScoutMapState {

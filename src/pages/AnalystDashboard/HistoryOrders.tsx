@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { analystApi, reportApi } from '../../services/api';
-import type { Order, Report } from '../../types';
+import type { Order, Report, OrderType } from '../../types';
 import { toast } from 'sonner';
 import { 
   Calendar,

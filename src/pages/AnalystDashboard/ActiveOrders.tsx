@@ -57,7 +57,7 @@ const ActiveOrders: React.FC<ActiveOrdersProps> = ({ onStartAnalysis }) => {
   };
 
   const getRemainingTime = (deadline?: string) => {
-    if (!deadline) return '-';
+    if (!deadline) return { text: '-', isUrgent: false };
     const end = new Date(deadline);
     const now = new Date();
     const diff = end.getTime() - now.getTime();

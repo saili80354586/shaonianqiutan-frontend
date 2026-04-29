@@ -61,6 +61,7 @@ const ActivityCardList: React.FC<Props> = ({ activities, loading, onSelectActivi
   const [activeTab, setActiveTab] = useState<ActivityTab>('all');
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
   const [feeFilter, setFeeFilter] = useState<FeeFilter>('all');
+  const [cityFilter, setCityFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
@@ -96,11 +97,18 @@ const ActivityCardList: React.FC<Props> = ({ activities, loading, onSelectActivi
       result = result.filter((a) => a.fee > 0 || a.feeType === 'paid');
     }
 
+    const cityKeyword = cityFilter.trim();
+    if (cityKeyword) {
+      result = result.filter((a) =>
+        [a.province, a.city, a.address].some((value) => value?.includes(cityKeyword))
+      );
+    }
+
     // 按时间排序
     result.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
     return result;
-  }, [activities, activeTab, timeFilter, feeFilter]);
+  }, [activities, activeTab, timeFilter, feeFilter, cityFilter]);
 
   const handleSelect = useCallback((activity: ClubActivity) => {
     onSelectActivity(activity);
@@ -186,6 +194,18 @@ const ActivityCardList: React.FC<Props> = ({ activities, loading, onSelectActivi
               ))}
             </div>
           </div>
+          <label className="flex items-center gap-2">
+            <span className="text-xs text-[#64748b]">城市</span>
+            <div className="relative">
+              <MapPin className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#64748b]" />
+              <input
+                value={cityFilter}
+                onChange={(event) => setCityFilter(event.target.value)}
+                placeholder="输入城市"
+                className="h-8 w-28 rounded-lg bg-[#0a0e17] border border-[#2d3748] pl-7 pr-2 text-xs text-[#f8fafc] placeholder-[#64748b] outline-none focus:border-[#39ff14]/60"
+              />
+            </div>
+          </label>
         </div>
       )}
 
@@ -208,7 +228,7 @@ const ActivityCardList: React.FC<Props> = ({ activities, loading, onSelectActivi
         )}
 
         {filteredActivities.map((activity) => {
-          const typeConfig = ACTIVITY_TYPE_CONFIG[activity.type];
+          const typeConfig = ACTIVITY_TYPE_CONFIG[activity.type] || ACTIVITY_TYPE_CONFIG.trial;
           const urgent = isUrgent(activity.startTime);
           const progress = activity.maxParticipants > 0 ? (activity.currentParticipants / activity.maxParticipants) * 100 : 0;
           const isSelected = selectedActivityId === activity.id;
