@@ -23,7 +23,6 @@ const RegisterSuccess = lazy(() => import('./pages/auth/RegisterSuccess'));
 const RegisterPending = lazy(() => import('./pages/auth/RegisterPending'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const VideoAnalysisLanding = lazy(() => import('./pages/VideoAnalysisLanding'));
-const VideoAnalysisOrder = lazy(() => import('./pages/VideoAnalysisNew'));
 const AnalystSelect = lazy(() => import('./pages/AnalystSelect'));
 const PackageSelect = lazy(() => import('./pages/PackageSelect'));
 const OrderConfirm = lazy(() => import('./pages/OrderConfirm'));
@@ -118,11 +117,13 @@ const hideNavbarPaths = [
   '/admin/orders',
   '/admin/analysts',
   '/club/dashboard',
+  '/club/profile',
   '/club/physical-tests',
   '/club/players',
   '/club/orders',
   '/club/analytics',
   '/club/reports',
+  '/club/physical-reports',
   '/coach/dashboard',
   '/scout/dashboard',
   '/scout/profile/edit',
@@ -152,7 +153,7 @@ function App() {
           <Route path="/register/success" element={<RegisterSuccess />} />
           <Route path="/register/pending" element={<RegisterPending />} />
           <Route path="/video-analysis" element={<VideoAnalysisLanding />} />
-          <Route path="/video-analysis/order" element={<VideoAnalysisOrder />} />
+          <Route path="/video-analysis/order" element={<Navigate to="/package-select" replace />} />
           {/* 分析师工作流统一在 /analyst/dashboard 内通过 VideoAnalysisWorkspace 完成 */}
           <Route path="/analyst/reports/new" element={<AnalystGuard><Navigate to="/analyst/dashboard" replace /></AnalystGuard>} />
           <Route path="/analyst/reports/:id/edit" element={<AnalystGuard><Navigate to="/analyst/dashboard" replace /></AnalystGuard>} />
@@ -212,6 +213,7 @@ function App() {
           <Route path="/club/analytics" element={<ClubGuard><Analytics /></ClubGuard>} />
           <Route path="/club/orders" element={<ClubGuard><ClubOrderManagement /></ClubGuard>} />
           <Route path="/club/reports/:id" element={<ClubGuard><PhysicalTestReport /></ClubGuard>} />
+          <Route path="/club/physical-reports/:id" element={<ClubGuard><PhysicalTestReport /></ClubGuard>} />
           <Route path="/tactic-edit" element={<TacticEditPage />} />
           <Route path="/match-self-review" element={<MatchSelfReviewPage />} />
           <Route path="/coach/dashboard" element={<CoachGuard><CoachDashboard /></CoachGuard>} />
