@@ -16,6 +16,7 @@ import {
   ShoppingBag,
 } from 'lucide-react';
 import { orderApi } from '../../../services/api';
+import { getApiUrl } from '../../../config/api';
 
 // 内联类型定义
 type OrderStatus = 'pending' | 'paid' | 'uploaded' | 'processing' | 'completed' | 'cancelled' | 'refunded';
@@ -298,8 +299,7 @@ export const UploadModule: React.FC = () => {
       );
     });
 
-    const baseURL = import.meta.env.VITE_API_URL || '/api';
-    xhr.open('POST', `${baseURL}/upload/file`);
+    xhr.open('POST', getApiUrl('/upload/file'));
 
     // 从 localStorage 获取 token
     const token = localStorage.getItem('token');

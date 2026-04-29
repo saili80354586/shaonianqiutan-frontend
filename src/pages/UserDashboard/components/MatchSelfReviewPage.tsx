@@ -211,7 +211,7 @@ export const MatchSelfReviewPage: React.FC = () => {
         setSubmitted(true);
         clearFormState();
         sessionStorage.setItem(RESULT_KEY, JSON.stringify({ success: true }));
-        setTimeout(() => { window.location.href = '/user-dashboard'; }, 1500);
+        setTimeout(() => { window.location.href = '/user-dashboard?tab=match_reports'; }, 1500);
       } else {
         setErrors({ submit: res.data?.message || '提交失败' });
       }

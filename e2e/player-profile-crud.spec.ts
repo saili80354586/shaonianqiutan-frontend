@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { apiUrl } from './config';
 
 const TEST_PHONE = '13800002001';
 const TEST_PASSWORD = '123456';
 
 /** 通用登录 */
 async function loginAsPlayer(request: any) {
-  const loginRes = await request.post('http://localhost:8080/api/auth/login', {
+  const loginRes = await request.post(apiUrl('/api/auth/login'), {
     data: { phone: TEST_PHONE, password: TEST_PASSWORD },
   });
   const token = (await loginRes.json()).data.token;
@@ -14,7 +15,7 @@ async function loginAsPlayer(request: any) {
 
 /** 获取球员 ID */
 async function getPlayerId(request: any, token: string) {
-  const res = await request.get('http://localhost:8080/api/player/profile', {
+  const res = await request.get(apiUrl('/api/player/profile'), {
     headers: { Authorization: `Bearer ${token}` },
   });
   const body = await res.json();
@@ -28,7 +29,7 @@ test.describe('体测 CRUD 全流程', () => {
   test('C1 - 创建体测记录（全字段）', async ({ request }) => {
     const token = await loginAsPlayer(request);
 
-    const res = await request.post('http://localhost:8080/api/player/physical-tests', {
+    const res = await request.post(apiUrl('/api/player/physical-tests'), {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -61,7 +62,7 @@ test.describe('体测 CRUD 全流程', () => {
   test('C2 - 获取体测记录列表', async ({ request }) => {
     const token = await loginAsPlayer(request);
 
-    const res = await request.get('http://localhost:8080/api/player/physical-tests', {
+    const res = await request.get(apiUrl('/api/player/physical-tests'), {
       headers: { Authorization: `Bearer ${token}` },
     });
 
@@ -76,7 +77,7 @@ test.describe('体测 CRUD 全流程', () => {
     const token = await loginAsPlayer(request);
 
     // 先创建一条专属记录（避免与其他测试并发冲突）
-    const createRes = await request.post('http://localhost:8080/api/player/physical-tests', {
+    const createRes = await request.post(apiUrl('/api/player/physical-tests'), {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -92,7 +93,7 @@ test.describe('体测 CRUD 全流程', () => {
 
     // 更新该记录（含新增字段 sprint_100m / t_test / plank）
     const updateRes = await request.put(
-      `http://localhost:8080/api/player/physical-tests/${recordId}`,
+      apiUrl(`/api/player/physical-tests/${recordId}`),
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -110,7 +111,7 @@ test.describe('体测 CRUD 全流程', () => {
   test('C4 - 删除体测记录', async ({ request }) => {
     const token = await loginAsPlayer(request);
 
-    const createRes = await request.post('http://localhost:8080/api/player/physical-tests', {
+    const createRes = await request.post(apiUrl('/api/player/physical-tests'), {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -121,7 +122,7 @@ test.describe('体测 CRUD 全流程', () => {
     const tempId = createBody.data.id;
 
     const deleteRes = await request.delete(
-      `http://localhost:8080/api/player/physical-tests/${tempId}`,
+      apiUrl(`/api/player/physical-tests/${tempId}`),
       { headers: { Authorization: `Bearer ${token}` } }
     );
     expect(deleteRes.ok()).toBeTruthy();
@@ -129,7 +130,7 @@ test.describe('体测 CRUD 全流程', () => {
     expect(deleteBody.success).toBe(true);
 
     const reDeleteRes = await request.delete(
-      `http://localhost:8080/api/player/physical-tests/${tempId}`,
+      apiUrl(`/api/player/physical-tests/${tempId}`),
       { headers: { Authorization: `Bearer ${token}` } }
     );
     expect(reDeleteRes.status()).toBe(404);
@@ -138,13 +139,13 @@ test.describe('体测 CRUD 全流程', () => {
   test('C5 - 体测记录所有权校验（不能修改他人记录）', async ({ request }) => {
     const player1Token = await loginAsPlayer(request);
 
-    const loginRes2 = await request.post('http://localhost:8080/api/auth/login', {
+    const loginRes2 = await request.post(apiUrl('/api/auth/login'), {
       data: { phone: '13800002002', password: '123456' },
     });
     if (!loginRes2.ok()) return;
 
     const player2Token = (await loginRes2.json()).data.token;
-    const listRes2 = await request.get('http://localhost:8080/api/player/physical-tests', {
+    const listRes2 = await request.get(apiUrl('/api/player/physical-tests'), {
       headers: { Authorization: `Bearer ${player2Token}` },
     });
     const player2Records: any[] = (await listRes2.json()).data.records;
@@ -153,7 +154,7 @@ test.describe('体测 CRUD 全流程', () => {
     const player2RecordId = player2Records[0].id;
 
     const deleteRes = await request.delete(
-      `http://localhost:8080/api/player/physical-tests/${player2RecordId}`,
+      apiUrl(`/api/player/physical-tests/${player2RecordId}`),
       { headers: { Authorization: `Bearer ${player1Token}` } }
     );
     expect(deleteRes.status()).toBe(404);
@@ -168,7 +169,7 @@ test.describe('球员公开主页 API', () => {
     const token = await loginAsPlayer(request);
     const playerId = await getPlayerId(request, token);
 
-    const res = await request.get(`http://localhost:8080/api/players/${playerId}/public`);
+    const res = await request.get(apiUrl(`/api/players/${playerId}/public`));
     expect(res.ok()).toBeTruthy();
     const body = await res.json();
     expect(body.success).toBe(true);
@@ -180,7 +181,7 @@ test.describe('球员公开主页 API', () => {
     const token = await loginAsPlayer(request);
     const playerId = await getPlayerId(request, token);
 
-    const res = await request.get(`http://localhost:8080/api/players/${playerId}/public`);
+    const res = await request.get(apiUrl(`/api/players/${playerId}/public`));
     const body = await res.json();
     const player = body.data.player;
 
@@ -194,7 +195,7 @@ test.describe('球员公开主页 API', () => {
     const token = await loginAsPlayer(request);
     const playerId = await getPlayerId(request, token);
 
-    const res = await request.get(`http://localhost:8080/api/players/${playerId}/public`);
+    const res = await request.get(apiUrl(`/api/players/${playerId}/public`));
     const body = await res.json();
     const player = body.data.player;
 
@@ -206,7 +207,7 @@ test.describe('球员公开主页 API', () => {
   });
 
   test('P4 - 不存在的球员返回 404', async ({ request }) => {
-    const res = await request.get('http://localhost:8080/api/players/99999999/public');
+    const res = await request.get(apiUrl('/api/players/99999999/public'));
     expect(res.status()).toBe(404);
   });
 });
@@ -218,7 +219,7 @@ test.describe('球员资料部分更新 API', () => {
   test('U1 - PATCH 单字段更新', async ({ request }) => {
     const token = await loginAsPlayer(request);
 
-    const res = await request.patch('http://localhost:8080/api/player/profile/partial', {
+    const res = await request.patch(apiUrl('/api/player/profile/partial'), {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -234,7 +235,7 @@ test.describe('球员资料部分更新 API', () => {
   test('U2 - PATCH 多字段更新', async ({ request }) => {
     const token = await loginAsPlayer(request);
 
-    const res = await request.patch('http://localhost:8080/api/player/profile/partial', {
+    const res = await request.patch(apiUrl('/api/player/profile/partial'), {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -250,7 +251,7 @@ test.describe('球员资料部分更新 API', () => {
   test('U3 - PATCH 白名单外字段被忽略', async ({ request }) => {
     const token = await loginAsPlayer(request);
 
-    const res = await request.patch('http://localhost:8080/api/player/profile/partial', {
+    const res = await request.patch(apiUrl('/api/player/profile/partial'), {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -277,7 +278,7 @@ test.describe('头像上传流程', () => {
       'base64'
     );
 
-    const res = await request.post('http://localhost:8080/api/upload/avatar', {
+    const res = await request.post(apiUrl('/api/upload/avatar'), {
       headers: {
         Authorization: `Bearer ${token}`,
       },

@@ -1,11 +1,12 @@
 import { test, expect, request } from '@playwright/test';
+import { API_BASE_URL } from './config';
 
 // ─────────────────────────────────────────────
 // 工具函数：为指定手机号申请一个后端验证码
 // 开发模式下后端固定返回 "123456"
 // ─────────────────────────────────────────────
 async function sendRegisterCode(phone: string): Promise<string> {
-  const ctx = await request.newContext({ baseURL: 'http://localhost:8080' });
+  const ctx = await request.newContext({ baseURL: API_BASE_URL });
   const res = await ctx.post('/api/auth/send-code', {
     data: { phone, type: 'register' },
   });
@@ -283,7 +284,7 @@ test.describe('球员注册完整流程 E2E', () => {
     // 先用 API 注册一个账号
     const phone = uniquePhone();
     const code1 = await sendRegisterCode(phone);
-    const ctx = await request.newContext({ baseURL: 'http://localhost:8080' });
+    const ctx = await request.newContext({ baseURL: API_BASE_URL });
     const regResp = await ctx.post('/api/auth/register', {
       data: {
         phone, code: code1, password: 'Test123456', role: 'player',

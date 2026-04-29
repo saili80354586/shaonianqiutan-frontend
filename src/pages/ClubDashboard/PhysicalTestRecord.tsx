@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Search, Check, SkipForward, User, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Check, SkipForward, User } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ptApi } from '../../services/api';
 import { PhysicalTestTooltip } from '../../components/ui/PhysicalTestTooltip';
 
@@ -33,11 +34,16 @@ interface RecordItem {
 }
 
 interface PhysicalTestRecordProps {
-  testId: number | null;
-  onBack: () => void;
+  testId?: number | null;
+  onBack?: () => void;
 }
 
 const PhysicalTestRecord: React.FC<PhysicalTestRecordProps> = ({ testId, onBack }) => {
+  const navigate = useNavigate();
+  const params = useParams();
+  const routeTestId = Number(params.id);
+  const resolvedTestId = testId ?? (Number.isFinite(routeTestId) && routeTestId > 0 ? routeTestId : null);
+  const handleBack = onBack || (() => navigate('/club/physical-tests'));
   const [records, setRecords] = useState<RecordItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -47,16 +53,18 @@ const PhysicalTestRecord: React.FC<PhysicalTestRecordProps> = ({ testId, onBack 
   const [testName, setTestName] = useState('');
 
   useEffect(() => {
-    if (testId) {
+    if (resolvedTestId) {
       loadTestDetail();
       loadRecords();
+    } else {
+      setLoading(false);
     }
-  }, [testId]);
+  }, [resolvedTestId]);
 
   const loadTestDetail = async () => {
-    if (!testId) return;
+    if (!resolvedTestId) return;
     try {
-      const res = await ptApi.getPhysicalTestDetail(testId);
+      const res = await ptApi.getPhysicalTestDetail(resolvedTestId);
       if (res.data?.success && res.data?.data) {
         const data = res.data.data;
         setTestName(data.name || '');
@@ -68,10 +76,10 @@ const PhysicalTestRecord: React.FC<PhysicalTestRecordProps> = ({ testId, onBack 
   };
 
   const loadRecords = async () => {
-    if (!testId) return;
+    if (!resolvedTestId) return;
     setLoading(true);
     try {
-      const res = await ptApi.getPhysicalTestRecords(testId);
+      const res = await ptApi.getPhysicalTestRecords(resolvedTestId);
       if (res.data?.success && res.data?.data) {
         setRecords(res.data.data.list || []);
       }
@@ -95,10 +103,10 @@ const PhysicalTestRecord: React.FC<PhysicalTestRecordProps> = ({ testId, onBack 
   };
 
   const handleSaveAndNext = async () => {
-    if (!currentRecord || !testId) return;
+    if (!currentRecord || !resolvedTestId) return;
     setSaving(true);
     try {
-      const res = await ptApi.createPhysicalTestRecord(testId, {
+      const res = await ptApi.createPhysicalTestRecord(resolvedTestId, {
         playerId: currentRecord.playerId,
         data: formData,
       });
@@ -142,7 +150,7 @@ const PhysicalTestRecord: React.FC<PhysicalTestRecordProps> = ({ testId, onBack 
   if (records.length === 0) {
     return (
       <div className="min-h-screen bg-[#0f1419] p-8">
-        <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white mb-8">
+        <button onClick={handleBack} className="flex items-center gap-2 text-gray-400 hover:text-white mb-8">
           <ArrowLeft className="w-5 h-5" /> 返回
         </button>
         <div className="text-center text-gray-400 py-12">暂无球员数据</div>
@@ -156,7 +164,7 @@ const PhysicalTestRecord: React.FC<PhysicalTestRecordProps> = ({ testId, onBack 
         {/* 头部 */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white">
+            <button onClick={handleBack} className="flex items-center gap-2 text-gray-400 hover:text-white">
               <ArrowLeft className="w-5 h-5" /> 返回
             </button>
             {testName && <span className="text-white font-medium">{testName}</span>}

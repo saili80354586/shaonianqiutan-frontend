@@ -12,7 +12,7 @@ import { coachApi } from '../../services/club';
 import { clubInvitationApi } from '../../services/api';
 import { useAuthStore } from '../../store';
 import RoleSwitcher from '../../components/RoleSwitcher';
-import ReactECharts from 'echarts-for-react';
+import ReactECharts from '../../components/charts/ReactECharts';
 import WeeklyReports from '../ClubDashboard/WeeklyReports';
 import MatchManagement from './MatchManagement';
 import FollowedPlayers from './FollowedPlayers';

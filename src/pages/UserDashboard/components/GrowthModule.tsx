@@ -100,7 +100,7 @@ export const GrowthModule: React.FC = () => {
       const x = 50 + labelRadius * Math.cos(angle);
       const y = 50 + labelRadius * Math.sin(angle);
       // 根据象限调整对齐方式
-      let textAnchor = 'middle';
+      let textAnchor: 'start' | 'middle' | 'end' = 'middle';
       let dx = 0;
       let dy = 0;
       if (Math.abs(Math.cos(angle)) < 0.001) {

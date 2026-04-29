@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Calendar, MapPin, Check, Plus, X, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { ptApi } from '../../services/api';
 
 const ALL_TEST_ITEMS = [
@@ -20,7 +21,20 @@ const ALL_TEST_ITEMS = [
   { key: 'plank', name: '平板支撑', unit: '秒', category: '力量类' },
 ];
 
-const BUILTIN_TEMPLATES = [
+type TemplateFilter = 'all' | 'builtin' | 'custom';
+
+interface DisplayTemplate {
+  id: string;
+  name: string;
+  description: string;
+  items: string[];
+  itemKeys: string[];
+  color: string;
+  isCustom?: boolean;
+  customId?: number;
+}
+
+const BUILTIN_TEMPLATES: DisplayTemplate[] = [
   {
     id: 'basic',
     name: '基础版',
@@ -69,11 +83,12 @@ interface PhysicalTestPayload {
 }
 
 interface CreatePhysicalTestProps {
-  onBack: () => void;
+  onBack?: () => void;
   onSuccess?: () => void;
 }
 
 const CreatePhysicalTest: React.FC<CreatePhysicalTestProps> = ({ onBack, onSuccess }) => {
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -88,21 +103,20 @@ const CreatePhysicalTest: React.FC<CreatePhysicalTestProps> = ({ onBack, onSucce
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([]);
-  const [templatesLoading, setTemplatesLoading] = useState(true);
-  const [templateFilter, setTemplateFilter] = useState<'all' | 'builtin' | 'custom'>('all');
+  const [templateFilter, setTemplateFilter] = useState<TemplateFilter>('all');
 
   // 新建自定义模板弹窗
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customForm, setCustomForm] = useState({ name: '', description: '' });
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [customSaving, setCustomSaving] = useState(false);
+  const handleBack = onBack || (() => navigate('/club/physical-tests'));
 
   useEffect(() => {
     loadCustomTemplates();
   }, []);
 
   const loadCustomTemplates = async () => {
-    setTemplatesLoading(true);
     try {
       const res = await ptApi.getCustomTemplates();
       if (res.data?.success && res.data?.data) {
@@ -111,7 +125,6 @@ const CreatePhysicalTest: React.FC<CreatePhysicalTestProps> = ({ onBack, onSucce
     } catch (err) {
       console.error('加载自定义模板失败:', err);
     }
-    setTemplatesLoading(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -151,8 +164,11 @@ const CreatePhysicalTest: React.FC<CreatePhysicalTestProps> = ({ onBack, onSucce
       const res = await ptApi.createPhysicalTest(payload);
 
       if (res.data?.success) {
-        onSuccess?.();
-        window.location.href = '/club/physical-tests';
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          navigate('/club/physical-tests');
+        }
       } else {
         setError(res.data?.error?.message || '创建失败');
       }
@@ -224,7 +240,7 @@ const CreatePhysicalTest: React.FC<CreatePhysicalTestProps> = ({ onBack, onSucce
     return builtin ? builtin.items : [];
   };
 
-  const displayedTemplates = [
+  const displayedTemplates: DisplayTemplate[] = [
     ...(templateFilter !== 'custom' ? BUILTIN_TEMPLATES : []),
     ...(templateFilter !== 'builtin' ? customTemplates.map(t => ({
       id: `custom-${t.id}`,
@@ -237,13 +253,18 @@ const CreatePhysicalTest: React.FC<CreatePhysicalTestProps> = ({ onBack, onSucce
       customId: t.id,
     })) : []),
   ];
+  const templateFilters: Array<{ key: TemplateFilter; label: string }> = [
+    { key: 'all', label: '全部' },
+    { key: 'builtin', label: '系统模板' },
+    { key: 'custom', label: '我的模板' },
+  ];
 
   return (
     <div className="min-h-screen bg-[#0f1419]">
       <div className="max-w-3xl mx-auto p-8">
         {/* 头部 */}
         <div className="flex items-center gap-4 mb-8">
-          <button onClick={onBack} className="p-2 hover:bg-gray-800 rounded-xl transition-colors text-gray-400 hover:text-white">
+          <button onClick={handleBack} className="p-2 hover:bg-gray-800 rounded-xl transition-colors text-gray-400 hover:text-white">
             <ArrowLeft className="w-6 h-6" />
           </button>
           <div>
@@ -339,11 +360,7 @@ const CreatePhysicalTest: React.FC<CreatePhysicalTestProps> = ({ onBack, onSucce
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-white">体测模板</h2>
               <div className="flex items-center gap-2 bg-[#0f1419] rounded-lg p-1">
-                {[
-                  { key: 'all', label: '全部' },
-                  { key: 'builtin', label: '系统模板' },
-                  { key: 'custom', label: '我的模板' },
-                ].map((f: { key: 'all' | 'builtin' | 'custom'; label: string }) => (
+                {templateFilters.map((f) => (
                   <button
                     key={f.key}
                     type="button"
@@ -365,8 +382,9 @@ const CreatePhysicalTest: React.FC<CreatePhysicalTestProps> = ({ onBack, onSucce
                 <div
                   key={template.id}
                   onClick={() => {
+                    const customId = template.customId || 0;
                     if (template.isCustom) {
-                      setForm(f => ({ ...f, template: 'custom', customTemplateId: template.customId }));
+                      setForm(f => ({ ...f, template: 'custom', customTemplateId: customId }));
                     } else {
                       setForm(f => ({ ...f, template: template.id, customTemplateId: 0 }));
                     }
@@ -381,7 +399,7 @@ const CreatePhysicalTest: React.FC<CreatePhysicalTestProps> = ({ onBack, onSucce
                   {template.isCustom && (
                     <button
                       type="button"
-                      onClick={e => handleDeleteCustomTemplate(e, template.customId)}
+                      onClick={e => handleDeleteCustomTemplate(e, template.customId || 0)}
                       className="absolute top-2 right-2 p-1 text-gray-500 hover:text-red-400 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -467,7 +485,7 @@ const CreatePhysicalTest: React.FC<CreatePhysicalTestProps> = ({ onBack, onSucce
           <div className="flex items-center justify-end gap-4">
             <button
               type="button"
-              onClick={onBack}
+              onClick={handleBack}
               className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition-colors"
             >
               取消

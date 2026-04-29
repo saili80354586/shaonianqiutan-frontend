@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Save, Edit3, MapPin, Users, Trophy, Building2 } from 'lucide-react';
+import { ArrowLeft, Save, Edit3, MapPin, Trophy, Building2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { clubApi } from '../../services/club';
 
@@ -14,12 +14,11 @@ const ClubProfile: React.FC = () => {
   const [address, setAddress] = useState('');
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
-  const [contactPosition, setContactPosition] = useState('');
+  const contactPosition = '';
   const [province, setProvince] = useState('');
   const [city, setCity] = useState('');
   const [establishedYear, setEstablishedYear] = useState('');
   const [clubSize, setClubSize] = useState('');
-  const [clubType, setClubType] = useState('');
   const [achievements, setAchievements] = useState('');
   const [teamCount, setTeamCount] = useState(0);
   const [playerCount, setPlayerCount] = useState(0);
@@ -35,15 +34,16 @@ const ClubProfile: React.FC = () => {
         setClubName(d.name || d.club_name || '');
         setDescription(d.description || '');
         setAddress(d.address || '');
+        setContactName(d.contactName || d.contact_name || '');
+        setContactPhone(d.contactPhone || d.contact_phone || '');
         setProvince(d.province || '');
         setCity(d.city || '');
-        setEstablishedYear(d.established_year || '');
-        setClubSize(d.club_size || '');
-        setClubType(d.club_type || '');
+        setEstablishedYear(String(d.establishedYear ?? d.established_year ?? ''));
+        setClubSize(d.clubSize || d.club_size || '');
         setAchievements(d.achievements || '');
-        setTeamCount(d.team_count || 0);
-        setPlayerCount(d.player_count || 0);
-        setCoachCount(d.coach_count || 0);
+        setTeamCount(d.teamCount ?? d.team_count ?? 0);
+        setPlayerCount(d.playerCount ?? d.player_count ?? 0);
+        setCoachCount(d.coachCount ?? d.coach_count ?? 0);
       }
     } catch {
       toast.error('加载资料失败');
@@ -63,9 +63,10 @@ const ClubProfile: React.FC = () => {
         address,
         province,
         city,
-        established_year: establishedYear,
-        club_size: clubSize,
-        club_type: clubType,
+        contactName,
+        contactPhone,
+        establishedYear: establishedYear ? Number(establishedYear) : 0,
+        clubSize,
         achievements,
       });
       toast.success('保存成功');
@@ -87,7 +88,6 @@ const ClubProfile: React.FC = () => {
   }
 
   const sizeLabel = clubSize === 'large' ? '大型' : clubSize === 'medium' ? '中型' : clubSize === 'small' ? '小型' : '-';
-  const typeLabel = clubType === 'professional' ? '职业' : clubType === 'youth' ? '青训' : clubType === 'school' ? '校园' : clubType === 'amateur' ? '业余' : '-';
 
   return (
     <div className="max-w-2xl mx-auto pb-20">
@@ -129,9 +129,6 @@ const ClubProfile: React.FC = () => {
                 <span className="flex items-center gap-1">
                   <Building2 className="w-4 h-4" />{sizeLabel}
                 </span>
-              )}
-              {typeLabel && typeLabel !== '-' && (
-                <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded">{typeLabel}</span>
               )}
             </div>
           </div>
@@ -233,21 +230,6 @@ const ClubProfile: React.FC = () => {
             )}
           </div>
           <div>
-            <div className="text-gray-400 text-xs mb-1">俱乐部类型</div>
-            {isEditing ? (
-              <select value={clubType} onChange={e => setClubType(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white">
-                <option value="">请选择</option>
-                <option value="professional">职业俱乐部</option>
-                <option value="youth">青训俱乐部</option>
-                <option value="school">校园足球</option>
-                <option value="amateur">业余俱乐部</option>
-              </select>
-            ) : (
-              <div className="text-white">{typeLabel || '-'}</div>
-            )}
-          </div>
-          <div>
             <div className="text-gray-400 text-xs mb-1">主要成就</div>
             {isEditing ? (
               <textarea value={achievements} onChange={e => setAchievements(e.target.value)}
@@ -264,17 +246,29 @@ const ClubProfile: React.FC = () => {
       <div className="bg-[#1a1f2e] rounded-2xl border border-gray-800 p-6">
         <h3 className="text-white font-semibold mb-4">联系人信息</h3>
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <span className="text-gray-400 text-sm">联系人</span>
-            <span className="text-white">{contactName || '-'}</span>
+            {isEditing ? (
+              <input value={contactName} onChange={e => setContactName(e.target.value)}
+                placeholder="联系人姓名"
+                className="max-w-xs flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 text-right" />
+            ) : (
+              <span className="text-white">{contactName || '-'}</span>
+            )}
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <span className="text-gray-400 text-sm">职位</span>
             <span className="text-white">{contactPosition || '-'}</span>
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <span className="text-gray-400 text-sm">联系电话</span>
-            <span className="text-white">{contactPhone || '-'}</span>
+            {isEditing ? (
+              <input value={contactPhone} onChange={e => setContactPhone(e.target.value)}
+                placeholder="联系电话"
+                className="max-w-xs flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 text-right" />
+            ) : (
+              <span className="text-white">{contactPhone || '-'}</span>
+            )}
           </div>
         </div>
       </div>

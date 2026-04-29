@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, FileText, Clock, CheckCircle, XCircle, Eye, Download, Plus, Filter, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, FileText, Clock, CheckCircle, XCircle, Eye, Download, Plus, type LucideIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { orderApi } from '../../services/api';
 import { TableSkeleton } from '../../components/ui/loading';
 
@@ -16,7 +17,7 @@ interface Order {
 }
 
 interface OrderManagementProps {
-  onBack: () => void;
+  onBack?: () => void;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: LucideIcon }> = {
@@ -31,6 +32,8 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: Lucide
 };
 
 const OrderManagement: React.FC<OrderManagementProps> = ({ onBack }) => {
+  const navigate = useNavigate();
+  const handleBack = onBack || (() => navigate('/club/dashboard'));
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -76,7 +79,7 @@ const OrderManagement: React.FC<OrderManagementProps> = ({ onBack }) => {
       <div className="p-8">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <button onClick={onBack} className="p-2 hover:bg-gray-800 rounded-xl transition-colors text-gray-400 hover:text-white">
+            <button onClick={handleBack} className="p-2 hover:bg-gray-800 rounded-xl transition-colors text-gray-400 hover:text-white">
               <ArrowLeft className="w-6 h-6" />
             </button>
             <div>
@@ -84,7 +87,7 @@ const OrderManagement: React.FC<OrderManagementProps> = ({ onBack }) => {
               <p className="text-gray-400 mt-1">管理俱乐部订单和报告</p>
             </div>
           </div>
-          <button onClick={() => window.location.href = '/club/orders/batch'}
+          <button onClick={() => navigate('/club/orders/batch')}
             className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition-colors">
             <Plus className="w-4 h-4" />批量下单
           </button>

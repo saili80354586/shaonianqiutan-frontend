@@ -58,7 +58,7 @@ export const CreateMatchModal: React.FC<CreateMatchModalProps> = ({ teamId, team
         matchDate: form.matchDate,
         opponent: form.opponent,
         ourScore: form.ourScore,
-        oppScore: form.oppScore,
+        opponentScore: form.oppScore,
         playerIds: selectedPlayers,
       });
       toast.success('创建比赛成功');

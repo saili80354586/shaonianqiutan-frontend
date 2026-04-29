@@ -268,9 +268,9 @@ export const MatchDetailView: React.FC<MatchDetailViewProps> = ({
                       </div>
                       <div className="flex items-center gap-2">
                         {isSubmitted ? (
-                          <CheckCircle className="text-green-400" size={18} title="已提交" />
+                          <CheckCircle className="text-green-400" size={18} />
                         ) : (
-                          <Clock className="text-yellow-400" size={18} title="待提交" />
+                          <Clock className="text-yellow-400" size={18} />
                         )}
                         {playerReview?.coachRating && (
                           <div className="flex items-center gap-1 text-yellow-400">

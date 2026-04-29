@@ -1,15 +1,30 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { LoginPage } from '../pages/LoginPage';
 import { CoachDashboardPage } from '../pages/CoachDashboardPage';
+import { ClubDashboardPage } from '../pages/ClubDashboardPage';
 
 /**
- * E2E 测试：周报流程、比赛总结流程、通知系统
+ * E2E 测试：周报流程、比赛管理流程、通知系统
  * 
  * 测试覆盖：
  * 1. 教练发起周报 → 球员填写 → 教练审核
  * 2. 教练创建比赛 → 球员自评 → 教练点评
  * 3. 通知系统：各类通知的触发和展示
  */
+
+const dashboardSidebar = (page: Page) => page.locator('aside, nav').first();
+
+async function openCoachWeeklyReports(page: Page) {
+  const weeklyReviewButton = dashboardSidebar(page).getByRole('button', { name: /周报审核/ }).first();
+  await expect(weeklyReviewButton).toBeVisible({ timeout: 10000 });
+  await weeklyReviewButton.click();
+  await expect(page.getByRole('heading', { name: /周报管理|周报审核/ }).first()).toBeVisible({ timeout: 10000 });
+}
+
+async function expectClubWeeklyReportsReady(page: Page) {
+  await expect(page.getByRole('heading', { name: '周报管理' }).first()).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('main button').filter({ hasText: /^全部\s*\d*$/ }).first()).toBeVisible({ timeout: 10000 });
+}
 
 test.describe('周报流程测试', () => {
   let loginPage: LoginPage;
@@ -29,10 +44,12 @@ test.describe('周报流程测试', () => {
     await test.step('进入周报管理页面', async () => {
       await coachDashboardPage.goto();
       await expect(page).toHaveURL(/\/coach\/dashboard/);
+      await openCoachWeeklyReports(page);
     });
 
     await test.step('验证页面加载成功', async () => {
-      await expect(page.locator('text=周报')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('heading', { name: '周报管理' }).first()).toBeVisible({ timeout: 10000 });
+      await expect(page.locator('main')).toContainText(/待审核|暂无周报/);
     });
   });
 
@@ -63,112 +80,92 @@ test.describe('周报流程测试', () => {
     });
 
     await test.step('进入周报管理', async () => {
-      await page.goto('/club/dashboard');
-      await page.waitForLoadState('networkidle');
-      
-      // 点击周报管理
-      const weeklyReportsLink = page.locator('text=周报管理').first();
-      if (await weeklyReportsLink.isVisible({ timeout: 3000 })) {
-        await weeklyReportsLink.click();
-        await page.waitForLoadState('networkidle');
-      }
+      const clubDashboardPage = new ClubDashboardPage(page);
+      await clubDashboardPage.clickWeeklyReports();
+      await expectClubWeeklyReportsReady(page);
     });
 
     await test.step('验证状态Tab存在', async () => {
-      const tabVisible = await page.locator('text=全部').isVisible().catch(() => false) ||
-                         await page.locator('text=待审核').isVisible().catch(() => false);
-      expect(tabVisible).toBeTruthy();
+      await expect(page.locator('main button').filter({ hasText: /^全部\s*\d*$/ }).first()).toBeVisible({ timeout: 5000 });
+      await expect(page.locator('main button').filter({ hasText: /^待审核\s*\d*$/ }).first()).toBeVisible({ timeout: 5000 });
     });
 
     await test.step('点击状态Tab进行筛选', async () => {
-      const pendingTab = page.locator('text=待审核').first();
-      if (await pendingTab.isVisible({ timeout: 3000 })) {
-        await pendingTab.click();
-        await page.waitForTimeout(500);
-      }
+      const pendingTab = page.locator('main button').filter({ hasText: /^待审核\s*\d*$/ }).first();
+      await pendingTab.click();
+      await page.waitForTimeout(500);
+      await expectClubWeeklyReportsReady(page);
     });
   });
 });
 
-test.describe('比赛总结流程测试', () => {
+test.describe('比赛管理流程测试', () => {
   let loginPage: LoginPage;
+  let coachDashboardPage: CoachDashboardPage;
+  let clubDashboardPage: ClubDashboardPage;
 
   test.beforeEach(async ({ page }) => {
     loginPage = new LoginPage(page);
+    coachDashboardPage = new CoachDashboardPage(page);
+    clubDashboardPage = new ClubDashboardPage(page);
   });
 
-  test('教练-创建比赛总结', async ({ page }) => {
+  test('教练-创建比赛', async ({ page }) => {
     await test.step('教练账号登录', async () => {
       await loginPage.goto();
       await loginPage.loginAsCoach();
     });
 
-    await test.step('进入我的球队', async () => {
-      await page.goto('/coach/dashboard');
-      await page.waitForLoadState('networkidle');
+    await test.step('进入我的球队并打开比赛Tab', async () => {
+      await coachDashboardPage.clickMyTeams();
+      await coachDashboardPage.clickFirstTeamCard();
+      await coachDashboardPage.clickMatchTab();
     });
 
-    await test.step('点击进入球队详情', async () => {
-      // 查找球队卡片
-      const teamCard = page.locator('[class*="card"], [class*="team"]').first();
-      if (await teamCard.isVisible({ timeout: 5000 })) {
-        await teamCard.click();
-        await page.waitForLoadState('networkidle');
-      }
-    });
-
-    await test.step('查找比赛总结入口', async () => {
-      const matchReportsLink = page.locator('text=比赛总结').first();
-      if (await matchReportsLink.isVisible({ timeout: 3000 })) {
-        await matchReportsLink.click();
-        await page.waitForLoadState('networkidle');
-      }
-    });
-
-    await test.step('验证比赛总结页面加载', async () => {
-      await expect(page.locator('text=比赛总结').or(page.locator('text=比赛'))).toBeVisible({ timeout: 5000 });
+    await test.step('验证比赛管理区域加载', async () => {
+      await expect(page.getByRole('button', { name: /创建比赛/ }).first()).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText('待自评').first()).toBeVisible({ timeout: 5000 });
     });
   });
 
-  test('比赛总结-状态流转展示', async ({ page }) => {
+  test('比赛管理-状态流转展示', async ({ page }) => {
     await test.step('登录俱乐部账号', async () => {
       await loginPage.goto();
       await loginPage.loginAsClub();
     });
 
-    await test.step('进入比赛总结页面', async () => {
-      await page.goto('/club/match-reports');
-      await page.waitForLoadState('networkidle');
+    await test.step('进入比赛管理页面', async () => {
+      await clubDashboardPage.clickMatchReports();
     });
 
-    await test.step('验证状态Tab存在', async () => {
-      // 查找状态Tab
-      const statusTabs = page.locator('[role="tab"], button:has-text("待")');
-      await expect(statusTabs.first()).toBeVisible({ timeout: 5000 });
+    await test.step('验证状态统计存在', async () => {
+      await expect(page.getByRole('heading', { name: /比赛管理/ }).first()).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText('待自评').first()).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText('待点评').first()).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText('已完成').first()).toBeVisible({ timeout: 5000 });
     });
 
     await test.step('验证状态统计显示', async () => {
       // 验证有状态统计数据
-      const statsCards = page.locator('text=待自评, text=待点评, text=已完成').first();
+      const statsCards = page.getByText(/待自评|待点评|已完成/).first();
       await expect(statsCards).toBeVisible({ timeout: 5000 }).catch(() => {
         // 如果还没数据，这是可接受的
-        console.log('暂无比赛总结数据');
+        console.log('暂无比赛管理数据');
       });
     });
   });
 
-  test('比赛总结-创建比赛总结弹窗', async ({ page }) => {
+  test('比赛管理-创建比赛弹窗', async ({ page }) => {
     await test.step('登录俱乐部账号', async () => {
       await loginPage.goto();
       await loginPage.loginAsClub();
     });
 
-    await test.step('进入比赛总结页面', async () => {
-      await page.goto('/club/match-reports');
-      await page.waitForLoadState('networkidle');
+    await test.step('进入比赛管理页面', async () => {
+      await clubDashboardPage.clickMatchReports();
     });
 
-    await test.step('点击创建比赛总结按钮', async () => {
+    await test.step('点击创建比赛按钮', async () => {
       const createButton = page.locator('button:has-text("创建"), button:has-text("新建")').first();
       if (await createButton.isVisible({ timeout: 3000 })) {
         await createButton.click();
@@ -203,9 +200,8 @@ test.describe('通知系统测试', () => {
     });
 
     await test.step('验证通知页面加载', async () => {
-      // 验证页面有通知相关内容
-      const hasNotifications = await page.locator('text=通知, text=暂无通知').isVisible({ timeout: 5000 });
-      expect(hasNotifications).toBeTruthy();
+      await expect(page.getByRole('heading', { name: '通知中心' }).first()).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('button', { name: /^全部/ }).first()).toBeVisible({ timeout: 5000 });
     });
   });
 
@@ -282,9 +278,11 @@ test.describe('通知系统测试', () => {
 
 test.describe('教练后台-我的球队', () => {
   let loginPage: LoginPage;
+  let coachDashboardPage: CoachDashboardPage;
 
   test.beforeEach(async ({ page }) => {
     loginPage = new LoginPage(page);
+    coachDashboardPage = new CoachDashboardPage(page);
   });
 
   test('教练-我的球队列表', async ({ page }) => {
@@ -294,12 +292,13 @@ test.describe('教练后台-我的球队', () => {
     });
 
     await test.step('进入教练后台', async () => {
-      await page.goto('/coach/dashboard');
-      await page.waitForLoadState('networkidle');
+      await coachDashboardPage.goto();
+      await coachDashboardPage.clickMyTeams();
     });
 
     await test.step('验证我的球队显示', async () => {
-      await expect(page.locator('text=我的球队').or(page.locator('text=球队'))).toBeVisible({ timeout: 5000 });
+      await expect(page.getByRole('heading', { name: '我的球队' }).first()).toBeVisible({ timeout: 10000 });
+      await expect(page.locator('main')).toContainText(/球员|暂无关联球队/);
     });
 
     await test.step('验证球队卡片存在', async () => {

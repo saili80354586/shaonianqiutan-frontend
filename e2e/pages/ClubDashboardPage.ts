@@ -12,6 +12,9 @@ export class ClubDashboardPage {
   readonly matchReportsLink: Locator;
   readonly clubHomeLink: Locator;
   readonly analyticsLink: Locator;
+  readonly statsLink: Locator;
+  readonly ordersGroupButton: Locator;
+  readonly opsGroupButton: Locator;
   readonly profileSettingsLink: Locator;
   readonly logoutButton: Locator;
   readonly sidebar: Locator;
@@ -21,15 +24,18 @@ export class ClubDashboardPage {
     this.sidebar = page.locator('aside, nav').first();
 
     // Sidebar - 使用更精确的定位器
-    this.overviewLink = this.sidebar.locator('text=概览').first();
+    this.overviewLink = this.sidebar.getByRole('link', { name: /工作台/ }).first();
     this.playerManagementLink = this.sidebar.locator('text=球员管理').first();
     this.teamManagementLink = this.sidebar.locator('text=球队管理').first();
     this.batchOrdersLink = this.sidebar.locator('text=批量订单').first();
     this.weeklyReportsLink = this.sidebar.locator('text=周报管理').first();
-    this.matchReportsLink = this.sidebar.locator('text=比赛总结').first();
+    this.matchReportsLink = this.sidebar.locator('text=比赛管理').first();
     // 俱乐部主页在侧边栏显示为 "主页编辑"
     this.clubHomeLink = this.sidebar.locator('text=主页编辑').first();
     this.analyticsLink = this.sidebar.locator('text=数据分析').first();
+    this.statsLink = this.sidebar.locator('text=数据统计').first();
+    this.ordersGroupButton = this.sidebar.getByRole('button', { name: '订单与数据' }).first();
+    this.opsGroupButton = this.sidebar.getByRole('button', { name: '运营工具' }).first();
     this.profileSettingsLink = this.sidebar.locator('text=俱乐部设置').first();
 
     // 退出按钮可能在底部栏
@@ -50,6 +56,15 @@ export class ClubDashboardPage {
     await locator.click({ force: true });
   }
 
+  async ensureSidebarItemVisible(locator: Locator, groupButton?: Locator) {
+    if (await locator.isVisible().catch(() => false)) return;
+    if (groupButton) {
+      await groupButton.click();
+      await this.page.waitForTimeout(300);
+    }
+    await expect(locator).toBeVisible({ timeout: 5000 });
+  }
+
   async clickOverview() {
     await this.clickWithScroll(this.overviewLink);
     await this.page.waitForLoadState('networkidle');
@@ -66,6 +81,7 @@ export class ClubDashboardPage {
   }
 
   async clickBatchOrders() {
+    await this.ensureSidebarItemVisible(this.batchOrdersLink, this.ordersGroupButton);
     await this.clickWithScroll(this.batchOrdersLink);
     await this.page.waitForLoadState('networkidle');
   }
@@ -81,6 +97,7 @@ export class ClubDashboardPage {
   }
 
   async clickClubHome() {
+    await this.ensureSidebarItemVisible(this.clubHomeLink, this.opsGroupButton);
     const btn = this.page.getByRole('button', { name: '主页编辑' }).first();
     await expect(btn).toBeVisible({ timeout: 5000 });
     // 底部栏可能遮挡侧边栏按钮，使用 evaluate 绕过 pointer-events 拦截
@@ -90,7 +107,14 @@ export class ClubDashboardPage {
   }
 
   async clickAnalytics() {
+    await this.ensureSidebarItemVisible(this.analyticsLink, this.ordersGroupButton);
     await this.clickWithScroll(this.analyticsLink);
+    await this.page.waitForLoadState('networkidle');
+  }
+
+  async clickStats() {
+    await this.ensureSidebarItemVisible(this.statsLink, this.ordersGroupButton);
+    await this.clickWithScroll(this.statsLink);
     await this.page.waitForLoadState('networkidle');
   }
 

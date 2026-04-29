@@ -739,7 +739,7 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
               </label>
               <select
                 value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value })}
+                onChange={(e) => setForm({ ...form, status: e.target.value as 'active' | 'inactive' })}
                 className="w-full px-4 py-2.5 bg-[#0f1419] border border-gray-700 rounded-xl text-white focus:outline-none focus:border-emerald-500"
               >
                 <option value="active">在训</option>

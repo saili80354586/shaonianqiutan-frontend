@@ -14,79 +14,113 @@ interface ClubHomePageProps {
   previewData?: ClubHomeData;
 }
 
-interface AchievementItem {
-  id: number | string;
+type LooseRecord = Record<string, any>;
+
+interface AchievementItem extends LooseRecord {
+  id?: number | string;
   title?: string;
   count?: string | number;
+  description?: string;
 }
 
-interface AboutSection {
+interface AboutSection extends LooseRecord {
   enabled?: boolean;
   title?: string;
   content?: string;
   image?: string;
+  images?: string[];
   features?: Array<{ title?: string; description?: string }>;
 }
 
-interface TeamItem {
-  id: number | string;
+interface TeamItem extends LooseRecord {
+  id?: number | string;
   name?: string;
   ageGroup?: string;
   description?: string;
   isShown?: boolean;
+  showPlayerCount?: boolean;
+  playerCount?: number;
 }
 
-interface CoachItem {
+interface CoachItem extends LooseRecord {
   id?: number | string;
   user_id?: number | string;
   name?: string;
+  nickname?: string;
+  role?: string;
   position?: string;
   avatar?: string;
+  license_level?: string;
   isShown?: boolean;
 }
 
-interface PlayerItem {
+interface PlayerItem extends LooseRecord {
   id?: number | string;
   user_id?: number | string;
   name?: string;
+  nickname?: string;
+  age_group?: string;
   position?: string;
   avatar?: string;
   number?: string | number;
+  recommendText?: string;
   isShown?: boolean;
 }
 
-interface FacilitySchedule {
+interface FacilitySchedule extends LooseRecord {
   day?: string;
   time?: string;
+  timeRange?: string;
   type?: string;
+  group?: string;
 }
 
-interface FacilitySection {
+interface FacilitySection extends LooseRecord {
+  enabled?: boolean;
+  title?: string;
   name?: string;
   address?: string;
+  description?: string;
   images?: string[];
   schedule?: FacilitySchedule[];
 }
 
-interface NewsItem {
-  id: number | string;
+interface NewsItem extends LooseRecord {
+  id?: number | string;
   title?: string;
   summary?: string;
+  content?: string;
   image?: string;
+  isPinned?: boolean;
+  publishDate?: string;
+  link?: string;
+  type?: string;
+  name?: string;
+  date?: string;
   createdAt?: string;
 }
 
-interface ActivityItem {
-  id: number | string;
+interface ActivityItem extends LooseRecord {
+  id?: number | string;
   title?: string;
+  type?: string;
   status?: string;
   isReview?: boolean;
   image?: string;
+  coverImage?: string;
   date?: string;
+  description?: string;
+  startTime?: string;
+  endTime?: string;
   location?: string;
+  maxParticipants?: number;
+  regCount?: number;
+  reviewContent?: string;
+  reviewImages?: string[] | string;
 }
 
-interface ClubHomeData {
+interface ClubHomeData extends LooseRecord {
+  modules?: { order?: string[]; visibility?: Record<string, boolean> };
   club?: { name?: string; description?: string; logo?: string };
   hero?: { title?: string; subtitle?: string; backgroundImage?: string; showStats?: boolean };
   about?: AboutSection;
@@ -95,8 +129,11 @@ interface ClubHomeData {
   coaches?: CoachItem[];
   players?: PlayerItem[];
   facilities?: FacilitySection;
-  news?: { manual?: NewsItem[]; auto?: NewsItem[] };
+  news?: { manual?: NewsItem[]; auto?: NewsItem[]; matches?: NewsItem[]; tests?: NewsItem[]; manualItems?: NewsItem[] };
   activities?: ActivityItem[];
+  recruitment?: LooseRecord;
+  contact?: LooseRecord;
+  socialLinks?: LooseRecord;
 }
 
 const SURFACE_CARD = 'bg-[#101827]/88 border border-white/12 shadow-[0_24px_90px_rgba(0,0,0,0.42)] backdrop-blur-2xl';
@@ -215,7 +252,7 @@ const ClubHomePage: React.FC<ClubHomePageProps> = ({ clubId, onBack, previewData
   if (!data) {
     return (
       <div className="min-h-screen bg-[#0f1419] flex items-center justify-center">
-        <p className="text-gray-400">暂无数据</p>
+        <p className="text-gray-400">{error || '暂无数据'}</p>
       </div>
     );
   }
@@ -464,14 +501,14 @@ const ClubHomePage: React.FC<ClubHomePageProps> = ({ clubId, onBack, previewData
               <div className="flex items-start gap-4 mb-4">
                 <div className="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-blue-600/20 rounded-full flex items-center justify-center text-2xl font-bold text-white overflow-hidden">
                   {coach.avatar ? (
-                    <LazyImage src={coach.avatar} alt={coach.name} className="w-full h-full object-cover" containerClassName="w-full h-full" />
+                    <LazyImage src={coach.avatar} alt={coach.name || ''} className="w-full h-full object-cover" containerClassName="w-full h-full" />
                   ) : (
                     coach.name?.[0] || '教'
                   )}
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-white">{coach.name || coach.nickname}</h3>
-                  <p className="text-purple-400 text-sm">{roleMap[coach.role] || coach.role}</p>
+                  <p className="text-purple-400 text-sm">{coach.role ? roleMap[coach.role] || coach.role : ''}</p>
                   {coach.license_level && <p className="text-gray-500 text-xs mt-0.5">{coach.license_level}</p>}
                 </div>
               </div>
@@ -497,7 +534,7 @@ const ClubHomePage: React.FC<ClubHomePageProps> = ({ clubId, onBack, previewData
             <div key={player.id || player.user_id} className="bg-[#1a1f2e] rounded-2xl p-4 border border-gray-800 text-center">
               <div className="w-20 h-20 mx-auto bg-gradient-to-br from-emerald-500/20 to-blue-600/20 rounded-full flex items-center justify-center text-xl font-bold text-white mb-3 overflow-hidden">
                 {player.avatar ? (
-                  <LazyImage src={player.avatar} alt={player.name} className="w-full h-full object-cover" containerClassName="w-full h-full" />
+                  <LazyImage src={player.avatar} alt={player.name || ''} className="w-full h-full object-cover" containerClassName="w-full h-full" />
                 ) : (
                   player.name?.[0] || '球'
                 )}
@@ -622,7 +659,7 @@ const ClubHomePage: React.FC<ClubHomePageProps> = ({ clubId, onBack, previewData
                 <div key={act.id} className="bg-[#1a1f2e] rounded-2xl overflow-hidden border border-gray-800 hover:border-pink-500/30 transition-all group">
                   {act.coverImage && (
                     <div className="h-40 overflow-hidden">
-                      <LazyImage src={act.coverImage} alt={act.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" containerClassName="w-full h-full" />
+                      <LazyImage src={act.coverImage} alt={act.title || ''} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" containerClassName="w-full h-full" />
                     </div>
                   )}
                   <div className="p-5">
@@ -640,7 +677,7 @@ const ClubHomePage: React.FC<ClubHomePageProps> = ({ clubId, onBack, previewData
                       {act.startTime && <div><Calendar className="w-4 h-4 inline mr-1" />{act.startTime}{act.endTime ? ` ~ ${act.endTime}` : ''}</div>}
                       {act.location && <div><MapPin className="w-4 h-4 inline mr-1" />{act.location}</div>}
                     </div>
-                    {act.maxParticipants > 0 && (
+                    {(act.maxParticipants || 0) > 0 && (
                       <div className="mt-3 text-xs text-gray-500">
                         已报名 {act.regCount || 0} / {act.maxParticipants} 人
                       </div>
@@ -663,7 +700,7 @@ const ClubHomePage: React.FC<ClubHomePageProps> = ({ clubId, onBack, previewData
                 <div key={act.id} className="bg-[#1a1f2e] rounded-2xl overflow-hidden border border-gray-800">
                   {act.coverImage && (
                     <div className="h-40 overflow-hidden">
-                      <LazyImage src={act.coverImage} alt={act.title} className="w-full h-full object-cover" containerClassName="w-full h-full" />
+                      <LazyImage src={act.coverImage} alt={act.title || ''} className="w-full h-full object-cover" containerClassName="w-full h-full" />
                     </div>
                   )}
                   <div className="p-5">

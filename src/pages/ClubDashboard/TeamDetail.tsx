@@ -55,7 +55,7 @@ interface SeasonArchiveItem {
 const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, isAdmin = true, onViewDetail }) => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const isAlsoCoach = user?.roles?.includes('coach');
+  const isAlsoCoach = user?.role === 'coach' || user?.roles?.some(role => role.type === 'coach');
 
   const [team, setTeam] = useState<{ id: number; name: string; ageGroup: string; coachName?: string; description?: string } | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
@@ -285,7 +285,6 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, isAdmin = true,
     return (
       <MatchSummaryReview
         teamId={teamId}
-        teamName={team?.name || '球队'}
         onBack={() => setShowMatchReview(false)}
       />
     );
@@ -455,7 +454,7 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, isAdmin = true,
           </div>
           <div className="bg-[#1a1f2e] rounded-xl p-4 border border-gray-800">
             <div className="text-2xl font-bold text-emerald-400">
-              {players.reduce((sum, p) => sum + (p.avgScore || 0), 0) / (players.length || 1).toFixed(1)}
+              {(players.reduce((sum, p) => sum + (p.avgScore || 0), 0) / (players.length || 1)).toFixed(1)}
             </div>
             <div className="text-sm text-gray-400">平均评分</div>
           </div>
@@ -1090,7 +1089,6 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, isAdmin = true,
       {showCreateWeekly && (
         <CreateWeeklyModal
           teamId={teamId}
-          teamName={team?.name || ''}
           players={players}
           onClose={() => setShowCreateWeekly(false)}
           onSuccess={() => {

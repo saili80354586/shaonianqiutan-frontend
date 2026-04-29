@@ -5,7 +5,7 @@
  *
  * 覆盖范围（8大模块）：
  * 1. 俱乐部登录流程（成功/失败/空表单/不存在账号）
- * 2. 概览页核心数据卡验证（4张统计卡 + 快捷操作 + 运营洞察 + 活跃球员）
+ * 2. 工作台首页核心数据卡验证（4张统计卡 + 快捷操作 + 运营洞察 + 活跃球员）
  * 3. 左侧侧边栏导航测试（9个菜单项点击验证）
  * 4. 球员管理模块（列表/搜索/筛选/详情/添加）
  * 5. 表单校验测试（球队创建：必填/成功/年份校验/取消）
@@ -24,6 +24,7 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
+import { APP_BASE_URL } from '../config';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 公共辅助函数
@@ -65,20 +66,46 @@ async function waitForSkeletonsGone(page: Page) {
   }, { timeout: 10000 }).catch(() => {}); // 骨架屏可能不存在，忽略超时
 }
 
+/** 返回俱乐部工作台首页 */
+async function goToClubWorkbench(page: Page) {
+  const workbenchLink = page.getByRole('link', { name: /工作台/ }).first();
+  if (await workbenchLink.isVisible().catch(() => false)) {
+    await workbenchLink.click();
+  } else {
+    await page.goto('/club/dashboard');
+  }
+  await waitForReady(page);
+  await waitForSkeletonsGone(page);
+}
+
 /** 展开侧边栏的"运营工具"分组（健壮版：带重试） */
-async function expandOpsGroup(page: Page) {
-  const opsToolBtn = page.getByRole('button', { name: '运营工具' }).first();
+async function expandSidebarGroup(page: Page, groupName: string, visibleItemName: string) {
+  const item = page.getByRole('button', { name: visibleItemName }).first();
+  if (await item.isVisible().catch(() => false)) return;
+
+  const groupButton = page.getByRole('button', { name: groupName }).first();
   // 直接点击一次（默认折叠，点击即展开；若已展开则折叠，下方会重试）
-  await opsToolBtn.click();
+  await groupButton.click();
   await page.waitForTimeout(600);
 
-  // 验证"主页编辑"是否已可见
-  const homeEditorBtn = page.getByRole('button', { name: '主页编辑' }).first();
-  if (!(await homeEditorBtn.isVisible().catch(() => false))) {
+  if (!(await item.isVisible().catch(() => false))) {
     // 可能被折叠了，再点一次展开
-    await opsToolBtn.click();
+    await groupButton.click();
     await page.waitForTimeout(600);
   }
+
+  await expect(item).toBeVisible({ timeout: 5000 });
+}
+
+/** 点击侧边栏分组内菜单项 */
+async function clickSidebarItem(page: Page, groupName: string, itemName: string) {
+  await expandSidebarGroup(page, groupName, itemName);
+  await page.getByRole('button', { name: itemName }).first().click();
+}
+
+/** 展开侧边栏的"运营工具"分组（健壮版：带重试） */
+async function expandOpsGroup(page: Page) {
+  await expandSidebarGroup(page, '运营工具', '主页编辑');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -86,7 +113,7 @@ async function expandOpsGroup(page: Page) {
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('模块1 - 俱乐部登录流程', () => {
 
-  test('1.1 成功登录：输入正确账号密码 → 跳转俱乐部后台概览页', async ({ page }) => {
+  test('1.1 成功登录：输入正确账号密码 → 跳转俱乐部后台工作台首页', async ({ page }) => {
     await test.step('Step: 访问登录页，表单元素全部可见', async () => {
       await page.goto('/login');
       await expect(page.getByRole('textbox', { name: '请输入账号' })).toBeVisible();
@@ -100,9 +127,9 @@ test.describe('模块1 - 俱乐部登录流程', () => {
       await page.getByRole('button', { name: '登录' }).click();
     });
 
-    await test.step('Step: 验证跳转俱乐部后台，概览菜单和统计卡片出现', async () => {
+    await test.step('Step: 验证跳转俱乐部后台，工作台入口和统计卡片出现', async () => {
       await page.waitForURL(/\/club\/dashboard/, { timeout: 15000 });
-      await expect(page.getByText('概览').first()).toBeVisible();
+      await expect(page.getByRole('link', { name: /工作台/ }).first()).toBeVisible();
       await expect(page.getByText('在籍球员').first()).toBeVisible();
     });
   });
@@ -137,9 +164,9 @@ test.describe('模块1 - 俱乐部登录流程', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 模块 2：概览页核心数据卡验证
+// 模块 2：工作台首页核心数据卡验证
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('模块2 - 概览页核心数据卡验证', () => {
+test.describe('模块2 - 工作台首页核心数据卡验证', () => {
 
   test.beforeEach(async ({ page }) => {
     await loginAsClub(page);
@@ -147,9 +174,9 @@ test.describe('模块2 - 概览页核心数据卡验证', () => {
     await waitForReady(page);
   });
 
-  test('2.1 四张统计卡片全部渲染：在籍球员 / 进行中订单 / 已完成报告 / 本月支出', async ({ page }) => {
+  test('2.1 四张统计卡片全部渲染：在籍球员 / 待支付订单 / 已完成报告 / 本月支出', async ({ page }) => {
     await expect(page.getByText('在籍球员').first()).toBeVisible();
-    await expect(page.getByText('进行中订单').first()).toBeVisible();
+    await expect(page.getByText('待支付订单').first()).toBeVisible();
     await expect(page.getByText('已完成报告').first()).toBeVisible();
     await expect(page.getByText('本月支出').first()).toBeVisible();
   });
@@ -168,7 +195,7 @@ test.describe('模块2 - 概览页核心数据卡验证', () => {
     // 验证标签切换成功：球队管理页特有元素出现（注意：快捷卡片点击后 activeTab 切换，sidebar 消失）
     await expect(page.getByText('创建球队').first()).toBeVisible();
 
-    // 返回概览验证导航正常（TeamManagement 无 sidebar，直接刷新回 dashboard）
+    // 返回工作台首页验证导航正常（TeamManagement 无 sidebar，直接刷新回 dashboard）
     await page.goto('/club/dashboard');
     await waitForReady(page);
     await waitForSkeletonsGone(page);
@@ -196,10 +223,8 @@ test.describe('模块3 - 左侧侧边栏导航测试', () => {
     await waitForReady(page);
   });
 
-  test('3.1 概览 → 统计卡片重现', async ({ page }) => {
-    await page.getByText('概览').first().click();
-    await waitForReady(page);
-    await page.waitForTimeout(400);
+  test('3.1 工作台 → 统计卡片重现', async ({ page }) => {
+    await goToClubWorkbench(page);
     await expect(page.getByText('在籍球员').first()).toBeVisible();
   });
 
@@ -220,7 +245,7 @@ test.describe('模块3 - 左侧侧边栏导航测试', () => {
   });
 
   test('3.4 订单管理 → "总订单数"统计和"批量下单"按钮可见', async ({ page }) => {
-    await page.getByText('订单管理').first().click();
+    await clickSidebarItem(page, '订单与数据', '订单管理');
     await waitForReady(page);
     await page.waitForTimeout(400);
     await expect(page.getByText('总订单数').first()).toBeVisible();
@@ -228,7 +253,7 @@ test.describe('模块3 - 左侧侧边栏导航测试', () => {
   });
 
   test('3.5 批量订单 → 3步骤条（选择球员/选择服务/确认订单）可见', async ({ page }) => {
-    await page.getByText('批量订单').first().click();
+    await clickSidebarItem(page, '订单与数据', '批量订单');
     await waitForReady(page);
     await page.waitForTimeout(400);
     await expect(page.getByText('选择球员').first()).toBeVisible();
@@ -237,7 +262,7 @@ test.describe('模块3 - 左侧侧边栏导航测试', () => {
   });
 
   test('3.6 数据分析 → "球员年龄分布"和"位置人才储备"图表可见', async ({ page }) => {
-    await page.getByText('数据分析').first().click();
+    await clickSidebarItem(page, '订单与数据', '数据分析');
     await waitForReady(page);
     await page.waitForTimeout(400);
     await expect(page.getByText('球员年龄分布').first()).toBeVisible();
@@ -245,7 +270,7 @@ test.describe('模块3 - 左侧侧边栏导航测试', () => {
   });
 
   test('3.7 数据统计 → "订单总数"/"总支出"统计和"导出报表"按钮可见', async ({ page }) => {
-    await page.getByText('数据统计').first().click();
+    await clickSidebarItem(page, '订单与数据', '数据统计');
     await waitForReady(page);
     await page.waitForTimeout(400);
     await expect(page.getByText('订单总数').first()).toBeVisible();
@@ -462,13 +487,14 @@ test.describe('模块7 - 权限控制与退出登录', () => {
 
     // 球员无club权限，前端路由守卫将其重定向到首页
     const url = page.url();
-    const isRedirected = url.includes('/login') || url.includes('/user-dashboard') || url === 'http://localhost:5173/' || url.endsWith('/');
+    const homeUrl = new URL('/', APP_BASE_URL).toString();
+    const isRedirected = url.includes('/login') || url.includes('/user-dashboard') || url === homeUrl || url.endsWith('/');
     expect(isRedirected).toBeTruthy();
   });
 
   test('7.2 俱乐部管理员可正常访问俱乐部后台', async ({ page }) => {
     await loginAsClub(page);
-    await expect(page.getByText('概览').first()).toBeVisible();
+    await expect(page.getByRole('link', { name: /工作台/ }).first()).toBeVisible();
   });
 
   test('7.3 点击退出登录 → 清除会话并跳转登录页', async ({ page }) => {
@@ -512,7 +538,7 @@ test.describe('模块8 - 按钮实际反馈闭环', () => {
     await waitForReady(page);
   });
 
-  test('8.1 概览页"新建订单"按钮 → 跳转到批量订单页面', async ({ page }) => {
+  test('8.1 工作台首页"新建订单"按钮 → 跳转到批量订单页面', async ({ page }) => {
     await page.getByText('新建订单').first().click();
     await waitForReady(page);
     await page.waitForTimeout(500);
@@ -521,11 +547,9 @@ test.describe('模块8 - 按钮实际反馈闭环', () => {
     await expect(page.getByText('选择服务').first()).toBeVisible();
   });
 
-  test('8.2 概览页"发布动态"按钮 → 弹窗打开可关闭（反馈闭环）', async ({ page }) => {
-    // 确保在概览页
-    await page.getByText('概览').first().click();
-    await waitForReady(page);
-    await page.waitForTimeout(400);
+  test('8.2 工作台首页"发布动态"按钮 → 弹窗打开可关闭（反馈闭环）', async ({ page }) => {
+    // 确保在工作台首页
+    await goToClubWorkbench(page);
 
     const btn = page.getByRole('button', { name: '发布动态' });
     await expect(btn).toBeVisible({ timeout: 5000 });
@@ -570,7 +594,7 @@ test.describe('模块8 - 按钮实际反馈闭环', () => {
   });
 
   test('8.5 数据统计"导出报表"按钮 → 导出确认弹窗出现', async ({ page }) => {
-    await page.getByText('数据统计').first().click();
+    await clickSidebarItem(page, '订单与数据', '数据统计');
     await waitForReady(page);
     await page.waitForTimeout(400);
     await page.getByText('导出报表').first().click();
@@ -588,7 +612,7 @@ test.describe('模块8 - 按钮实际反馈闭环', () => {
   });
 
   test('8.6 订单管理"批量下单"按钮 → 跳转到批量订单页面', async ({ page }) => {
-    await page.getByText('订单管理').first().click();
+    await clickSidebarItem(page, '订单与数据', '订单管理');
     await waitForReady(page);
     await page.waitForTimeout(400);
     await page.getByText('批量下单').first().click();
@@ -610,7 +634,7 @@ test.describe('模块8 - 按钮实际反馈闭环', () => {
   });
 
   test('8.8 批量订单步骤1 → 选择球员后"下一步"从禁用变为可用（状态变化闭环）', async ({ page }) => {
-    await page.getByText('批量订单').first().click();
+    await clickSidebarItem(page, '订单与数据', '批量订单');
     await waitForReady(page);
     await page.waitForTimeout(2000);
 

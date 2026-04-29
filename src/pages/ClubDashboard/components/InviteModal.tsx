@@ -11,13 +11,47 @@ interface InviteModalProps {
 }
 
 type InviteMode = 'link' | 'search';
+interface InviteData {
+  inviteCode: string;
+  inviteUrl: string;
+  qrCode: string;
+  expiresAt: string;
+}
+
+interface SearchUserResult {
+  id: number;
+  name: string;
+  nickname?: string;
+  avatar?: string;
+  phone?: string;
+  role?: string;
+  teamName?: string;
+}
+
+const unwrapResponseData = (payload: unknown): Record<string, unknown> => {
+  const root = payload as { data?: unknown };
+  const data = root?.data as { data?: unknown } | undefined;
+  return ((data?.data ?? root?.data ?? payload) || {}) as Record<string, unknown>;
+};
+
+const buildInviteData = (payload: unknown): InviteData | null => {
+  const data = unwrapResponseData(payload);
+  const inviteCode = String(data.inviteCode ?? data.invite_code ?? data.code ?? '');
+  if (!inviteCode) return null;
+  return {
+    inviteCode,
+    inviteUrl: String(data.inviteUrl ?? data.invite_url ?? `${window.location.origin}/register?invite_code=${inviteCode}`),
+    qrCode: String(data.qrCode ?? data.qr_code ?? ''),
+    expiresAt: String(data.expiresAt ?? data.expires_at ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()),
+  };
+};
 
 const InviteModal: React.FC<InviteModalProps> = ({ teamId, teamName, type, onClose, onSuccess }) => {
   const [mode, setMode] = useState<InviteMode>('link');
   const [loading, setLoading] = useState(false);
-  const [inviteData, setInviteData] = useState<{ inviteCode: string; inviteUrl: string; qrCode: string; expiresAt: string } | null>(null);
+  const [inviteData, setInviteData] = useState<InviteData | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<{ id: number; name: string; avatar?: string; phone?: string }[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchUserResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [invitingUserId, setInvitingUserId] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
@@ -35,9 +69,8 @@ const InviteModal: React.FC<InviteModalProps> = ({ teamId, teamName, type, onClo
     setError(null);
     try {
       const res = await teamApi.createInvitation(teamId, { type });
-      if (res.data?.success) {
-        setInviteData(res.data.data);
-      }
+      const nextInviteData = buildInviteData(res);
+      if (nextInviteData) setInviteData(nextInviteData);
     } catch (err) {
       setError((err as Error).message || '生成邀请链接失败');
     } finally {
@@ -60,10 +93,9 @@ const InviteModal: React.FC<InviteModalProps> = ({ teamId, teamName, type, onClo
     setSearching(true);
     setError(null);
     try {
-      const res = await userSearchApi.search({ keyword: searchQuery, type });
-      if (res.data?.success) {
-        setSearchResults(res.data.data || []);
-      }
+      const res = await userSearchApi.searchUsers({ keyword: searchQuery, type });
+      const data = unwrapResponseData(res) as { list?: SearchUserResult[] };
+      setSearchResults(Array.isArray(data.list) ? data.list : []);
     } catch (err) {
       setError((err as Error).message || '搜索失败');
     } finally {
@@ -75,7 +107,7 @@ const InviteModal: React.FC<InviteModalProps> = ({ teamId, teamName, type, onClo
     setInvitingUserId(userId);
     setError(null);
     try {
-      await teamApi.inviteUser(teamId, { type, userId });
+      await teamApi.createInvitation(teamId, { type, targetUserId: userId });
       // 从搜索结果中移除已邀请的用户
       setSearchResults(prev => prev.filter(u => u.id !== userId));
       onSuccess?.();
@@ -158,7 +190,7 @@ const InviteModal: React.FC<InviteModalProps> = ({ teamId, teamName, type, onClo
 // 生成邀请链接内容
 interface LinkInviteContentProps {
   loading: boolean;
-  inviteData: { inviteCode: string; inviteUrl: string; qrCode: string; expiresAt: string } | null;
+  inviteData: InviteData | null;
   onCopy: (text: string) => void;
   onRegenerate: () => void;
   copied: boolean;
@@ -268,7 +300,7 @@ interface SearchInviteContentProps {
   type: 'player' | 'coach';
   searchQuery: string;
   onSearchQueryChange: (v: string) => void;
-  searchResults: { id: number; name: string; avatar?: string; phone?: string }[];
+  searchResults: SearchUserResult[];
   searching: boolean;
   invitingUserId: number | null;
   onSearch: () => void;

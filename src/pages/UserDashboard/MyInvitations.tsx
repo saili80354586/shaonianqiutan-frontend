@@ -200,7 +200,7 @@ const MyInvitations: React.FC<MyInvitationsProps> = ({ onBack, onViewTeam }) => 
       if (invitation.kind === 'trial') {
         await trialApi.respondInvite(invitation.id, { status: 'declined', response_note: rejectReason });
       } else if (invitation.inviteCode) {
-        await teamApi.rejectInvitation(invitation.inviteCode, rejectReason);
+        await teamApi.rejectInvitation(invitation.inviteCode);
       }
       setShowRejectModal(null);
       setRejectReason('');
@@ -379,7 +379,7 @@ const MyInvitations: React.FC<MyInvitationsProps> = ({ onBack, onViewTeam }) => 
               {inv.kind === 'team' && inv.status === 'accepted' && inv.teamId && (
                 <div className="flex items-center justify-end">
                   <button
-                    onClick={() => onViewTeam?.(inv.teamId)}
+                    onClick={() => onViewTeam?.(inv.teamId!)}
                     className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-xl transition-colors flex items-center gap-2"
                   >
                     查看球队 <ExternalLink className="w-4 h-4" />

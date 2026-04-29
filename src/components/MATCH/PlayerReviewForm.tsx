@@ -119,6 +119,21 @@ export const PlayerReviewForm: React.FC<PlayerReviewFormProps> = ({
     }
   };
 
+  const getEditingTacticScenario = (): TacticScenario => {
+    if (editingScenarioIndex !== null && tacticScenarios[editingScenarioIndex]) {
+      return tacticScenarios[editingScenarioIndex];
+    }
+
+    return {
+      index: tacticScenarios.length + 1,
+      title: '',
+      description: '',
+      question: '',
+      format: '11人制',
+      positions: [],
+    };
+  };
+
   if (success) {
     return (
       <div className="flex flex-col items-center justify-center py-12 space-y-4">
@@ -344,9 +359,9 @@ export const PlayerReviewForm: React.FC<PlayerReviewFormProps> = ({
                 </div>
                 {/* 球员数量统计 */}
                 <div className="flex gap-2 text-xs text-gray-500">
-                  <span>我方: {scenario.players?.filter(p => p.type === 'our').length || 0} 人</span>
+                  <span>我方: {scenario.positions?.filter(p => p.type === 'our').length || 0} 人</span>
                   <span>|</span>
-                  <span>对方: {scenario.players?.filter(p => p.type === 'opp').length || 0} 人</span>
+                  <span>对方: {scenario.positions?.filter(p => p.type === 'opp').length || 0} 人</span>
                 </div>
               </div>
             ))}
@@ -363,15 +378,17 @@ export const PlayerReviewForm: React.FC<PlayerReviewFormProps> = ({
       {/* 战术板编辑器弹窗 */}
       {tacticEditorOpen && (
         <TacticEditor
-          isOpen={tacticEditorOpen}
-          onClose={() => {
+          scenario={getEditingTacticScenario()}
+          onCancel={() => {
             setTacticEditorOpen(false);
             setEditingScenarioIndex(null);
           }}
           onSave={handleSaveTacticScenario}
-          initialData={
-            editingScenarioIndex !== null ? tacticScenarios[editingScenarioIndex] : undefined
-          }
+          onDelete={editingScenarioIndex !== null ? () => {
+            setTacticScenarios(tacticScenarios.filter((_, i) => i !== editingScenarioIndex));
+            setTacticEditorOpen(false);
+            setEditingScenarioIndex(null);
+          } : undefined}
         />
       )}
 

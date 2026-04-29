@@ -5,7 +5,7 @@ import {
   TrendingUp as TrendIcon, BarChart3, X, Save, Pencil, Trash2,
   AlertTriangle, ChevronDown, ChevronUp,
 } from 'lucide-react';
-import ReactECharts from 'echarts-for-react';
+import ReactECharts from '../../../components/charts/ReactECharts';
 import { ListItemSkeleton } from '../../../components/ui/loading';
 import { playerApi } from '../../../services/api';
 import { PhysicalTestTooltip } from '../../../components/ui/PhysicalTestTooltip';

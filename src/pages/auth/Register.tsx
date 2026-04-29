@@ -29,9 +29,11 @@ import { Beaker, Sparkles, Shield, Users, Award, Brain, Building2, GraduationCap
 import { roleThemes, getStepTheme } from './RegisterSteps/theme.config';
 
 // 角色图标映射 - 用于测试面板和 Logo
-const roleIcons: Record<UserRole, React.ElementType> = {
+const roleIcons: Record<string, React.ElementType> = {
   player: Users,
+  user: Users,
   analyst: Brain,
+  admin: Shield,
   club: Building2,
   coach: GraduationCap,
   scout: Eye,

@@ -41,10 +41,10 @@ const specialtyOptions = [
 ];
 
 interface CoachProfileProps {
-  onBack: () => void;
+  onBack?: () => void;
 }
 
-const CoachProfile: React.FC<CoachProfileProps> = ({ onBack }) => {
+const CoachProfile: React.FC<CoachProfileProps> = ({ onBack = () => window.history.back() }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -108,8 +108,8 @@ const CoachProfile: React.FC<CoachProfileProps> = ({ onBack }) => {
         position,
         licenseType,
         licenseNumber,
-        coachingYears,
-        specialties: JSON.stringify(specialties),
+        coachingYears: Number(coachingYears) || 0,
+        specialties,
         bio,
         city,
         currentClub,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Eye, X, Loader2, LayoutGrid, Image, Edit2, Award, Users, Shield, Star, Dumbbell, Newspaper, MessageCircle, Phone, Globe, Trash2, ChevronUp, ChevronDown, Mail, MapPin, Calendar, PartyPopper, Plus, Pin, Upload, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, Eye, X, Loader2, LayoutGrid, Image, Edit2, Award, Users, Shield, Star, Dumbbell, Newspaper, MessageCircle, Phone, Globe, Trash2, ChevronUp, ChevronDown, PartyPopper, Plus, Pin, Upload, type LucideIcon } from 'lucide-react';
 import { clubHomeApi, clubActivityApi } from '../../services/api';
 import ClubHomePage from './ClubHomePage';
 
@@ -9,11 +9,34 @@ const defOrder = ['hero','about','achievements','teams','coaches','players','fac
 const defVis: Record<string,boolean> = { hero:true,about:true,achievements:true,teams:true,coaches:true,players:false,facilities:false,news:true,activities:true,recruitment:false,contact:true };
 const labels: Record<string,string> = { hero:'Hero 横幅',about:'关于我们',achievements:'荣誉成就',teams:'球队展示',coaches:'教练团队',players:'球员风采',facilities:'训练环境',news:'最新动态',activities:'活动专区',recruitment:'招生信息',contact:'联系我们' };
 
-type ClubHomeData = Record<string, unknown>;
+type LooseRecord = Record<string, any>;
+
+interface ClubHomeData extends LooseRecord {
+  modules: {
+    order?: string[];
+    visibility?: Record<string, boolean>;
+  };
+  hero?: LooseRecord;
+  about?: LooseRecord;
+  achievements?: LooseRecord[];
+  teams?: LooseRecord[];
+  coaches?: LooseRecord[];
+  players?: LooseRecord[];
+  facilities?: LooseRecord;
+  news?: LooseRecord;
+  activities?: LooseRecord[];
+  recruitment?: LooseRecord;
+  contact?: LooseRecord;
+  socialLinks?: LooseRecord;
+}
+
+const createDefaultHomeData = (): ClubHomeData => ({
+  modules: { order: [...defOrder], visibility: { ...defVis } },
+});
 
 export default function ClubHomeEditor({ clubId, onBack }: Props) {
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<ClubHomeData | null>(null);
+  const [homeData, setData] = useState<ClubHomeData | null>(null);
   const [tab, setTab] = useState('overview');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string|null>(null);
@@ -27,7 +50,7 @@ export default function ClubHomeEditor({ clubId, onBack }: Props) {
     try {
       const res = await clubHomeApi.getClubHome(clubId);
       if (res.data?.success && res.data?.data) {
-        const d = res.data.data;
+        const d = res.data.data as ClubHomeData;
         if (!d.modules) d.modules = { order:[...defOrder], visibility:{...defVis} };
         if (!d.modules.order?.length) d.modules.order = [...defOrder];
         if (!d.modules.visibility) d.modules.visibility = { ...defVis };
@@ -46,14 +69,19 @@ export default function ClubHomeEditor({ clubId, onBack }: Props) {
 
   const setPath = (path: string, value: unknown) => {
     setData((prev: ClubHomeData | null) => {
-      const next = JSON.parse(JSON.stringify(prev));
+      const next = JSON.parse(JSON.stringify(prev ?? createDefaultHomeData())) as ClubHomeData;
       const keys = path.split('.');
-      let cur = next;
-      for (let i = 0; i < keys.length - 1; i++) cur = cur[keys[i]];
+      let cur: LooseRecord = next;
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (!cur[keys[i]] || typeof cur[keys[i]] !== 'object') cur[keys[i]] = {};
+        cur = cur[keys[i]];
+      }
       cur[keys[keys.length - 1]] = value;
       return next;
     });
   };
+
+  const data = homeData as ClubHomeData;
 
 interface NavItemProps { id: string; label: string; icon: LucideIcon; active?: boolean; onClick: (id: string) => void; }
 function NavItem({ id, label, icon: Icon, active, onClick }: NavItemProps) {
@@ -176,7 +204,7 @@ function ImageField({ label, value, onChange, rows=1, multiple=false }: ImageFie
         <T label="主标题" value={h.title} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setPath('hero.title',e.target.value)} />
         <T label="副标题" value={h.subtitle} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setPath('hero.subtitle',e.target.value)} />
         <ImageField label="背景图" value={h.backgroundImage} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setPath("hero.backgroundImage",e.target.value)} />
-        <label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={!!h.showStats} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setPath('hero.showStats',e.target.checked)} className="w-4 h-4 rounded border-gray-600 bg-[#1a1f2e] text-emerald-500"/>显示统计数据</label>
+        <label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={!!h.showStats} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setPath('hero.showStats',e.target.checked)} className="w-4 h-4 rounded border-gray-600 bg-[#1a1f2e] text-emerald-500"/>显示统计数据</label>
       </div>
     );
   };
@@ -186,14 +214,14 @@ function ImageField({ label, value, onChange, rows=1, multiple=false }: ImageFie
     return (
       <div className="space-y-4">
         <SectionHeader title="关于我们" onSave={()=>save(clubHomeApi.updateAbout,a,'关于我们')} saving={saving} />
-        <label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={!!a.enabled} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setPath('about.enabled',e.target.checked)} className="w-4 h-4 rounded border-gray-600 bg-[#1a1f2e] text-emerald-500"/>启用</label>
+        <label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={!!a.enabled} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setPath('about.enabled',e.target.checked)} className="w-4 h-4 rounded border-gray-600 bg-[#1a1f2e] text-emerald-500"/>启用</label>
         <T label="标题" value={a.title} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setPath('about.title',e.target.value)} />
         <T label="内容" value={a.content} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setPath('about.content',e.target.value)} rows={4} />
         <ImageField label="相册图片（每行一个）" value={(a.images||[]).join('\n')} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setPath('about.images',e.target.value.split('\n').filter(Boolean))} rows={3} multiple />
         <div>
           <label className="block text-xs text-gray-400 mb-1">特色标签</label>
           <div className="space-y-2">
-            {feats.map((f: Record<string, unknown>, i: number)=> (
+            {feats.map((f: LooseRecord, i: number)=> (
               <div key={i} className="flex gap-2">
                 <input type="text" value={f.title||''} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>{ const n=[...feats]; n[i]={...n[i],title:e.target.value}; setPath('about.features',n); }} placeholder="标题" className="flex-1 px-3 py-2 bg-[#1a1f2e] border border-gray-700 rounded-lg text-white text-sm outline-none focus:border-emerald-500"/>
                 <input type="text" value={f.description||''} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>{ const n=[...feats]; n[i]={...n[i],description:e.target.value}; setPath('about.features',n); }} placeholder="描述" className="flex-1 px-3 py-2 bg-[#1a1f2e] border border-gray-700 rounded-lg text-white text-sm outline-none focus:border-emerald-500"/>
@@ -213,7 +241,7 @@ function ImageField({ label, value, onChange, rows=1, multiple=false }: ImageFie
       <div className="space-y-4">
         <SectionHeader title="荣誉成就" onSave={()=>save(clubHomeApi.saveClubHome,{achievements:list},'荣誉成就')} saving={saving} />
         <div className="space-y-2">
-          {list.map((item: Record<string, unknown>, i: number)=> (
+          {list.map((item: LooseRecord, i: number)=> (
             <div key={item.id||i} className="bg-[#1a1f2e] rounded-xl p-3 border border-gray-800">
               <div className="grid grid-cols-12 gap-2">
                 <input type="text" value={item.title||''} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>{ const n=[...list]; n[i]={...n[i],title:e.target.value}; setPath('achievements',n); }} placeholder="标题" className="col-span-3 px-3 py-2 bg-[#0f1419] border border-gray-700 rounded-lg text-white text-sm outline-none focus:border-emerald-500"/>
@@ -311,14 +339,14 @@ function ImageField({ label, value, onChange, rows=1, multiple=false }: ImageFie
     return (
       <div className="space-y-4">
         <SectionHeader title="训练环境" onSave={()=>save(clubHomeApi.updateFacilities,f,'训练环境')} saving={saving} />
-        <label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={!!f.enabled} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setPath('facilities.enabled',e.target.checked)} className="w-4 h-4 rounded border-gray-600 bg-[#1a1f2e] text-emerald-500"/>启用</label>
+        <label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={!!f.enabled} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setPath('facilities.enabled',e.target.checked)} className="w-4 h-4 rounded border-gray-600 bg-[#1a1f2e] text-emerald-500"/>启用</label>
         <T label="标题" value={f.title} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setPath('facilities.title',e.target.value)} />
         <T label="描述" value={f.description} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setPath('facilities.description',e.target.value)} rows={3} />
         <ImageField label="图片（每行一个）" value={(f.images||[]).join('\n')} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setPath('facilities.images',e.target.value.split('\n').filter(Boolean))} rows={3} multiple />
         <div>
           <label className="block text-xs text-gray-400 mb-1">训练时间表</label>
           <div className="space-y-2">
-            {sch.map((s: Record<string, unknown>, i: number)=> (
+            {sch.map((s: LooseRecord, i: number)=> (
               <div key={i} className="flex gap-2">
                 <input type="text" value={s.day||''} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>{ const n=[...sch]; n[i]={...n[i],day:e.target.value}; setPath('facilities.schedule',n); }} placeholder="星期" className="flex-1 px-3 py-2 bg-[#1a1f2e] border border-gray-700 rounded-lg text-white text-sm outline-none focus:border-emerald-500"/>
                 <input type="text" value={s.timeRange||''} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>{ const n=[...sch]; n[i]={...n[i],timeRange:e.target.value}; setPath('facilities.schedule',n); }} placeholder="时间段" className="flex-1 px-3 py-2 bg-[#1a1f2e] border border-gray-700 rounded-lg text-white text-sm outline-none focus:border-emerald-500"/>
@@ -338,7 +366,7 @@ function ImageField({ label, value, onChange, rows=1, multiple=false }: ImageFie
     return (
       <div className="space-y-4">
         <SectionHeader title="招生信息" onSave={()=>save(clubHomeApi.updateRecruitment,r,'招生信息')} saving={saving} />
-        <label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={!!r.enabled} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setPath('recruitment.enabled',e.target.checked)} className="w-4 h-4 rounded border-gray-600 bg-[#1a1f2e] text-emerald-500"/>启用</label>
+        <label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={!!r.enabled} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setPath('recruitment.enabled',e.target.checked)} className="w-4 h-4 rounded border-gray-600 bg-[#1a1f2e] text-emerald-500"/>启用</label>
         <T label="标题" value={r.title} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setPath('recruitment.title',e.target.value)} />
         <T label="描述" value={r.description} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setPath('recruitment.description',e.target.value)} rows={3} />
         <div className="grid grid-cols-2 gap-3">
@@ -356,7 +384,7 @@ function ImageField({ label, value, onChange, rows=1, multiple=false }: ImageFie
     return (
       <div className="space-y-4">
         <SectionHeader title="联系我们" onSave={()=>save(clubHomeApi.updateContact,c,'联系我们')} saving={saving} />
-        <label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={!!c.enabled} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setPath('contact.enabled',e.target.checked)} className="w-4 h-4 rounded border-gray-600 bg-[#1a1f2e] text-emerald-500"/>启用</label>
+        <label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={!!c.enabled} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setPath('contact.enabled',e.target.checked)} className="w-4 h-4 rounded border-gray-600 bg-[#1a1f2e] text-emerald-500"/>启用</label>
         <T label="地址" value={c.address} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setPath('contact.address',e.target.value)} />
         <div className="grid grid-cols-2 gap-3">
           <T label="电话" value={c.phone} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setPath('contact.phone',e.target.value)} />
@@ -394,13 +422,13 @@ function ImageField({ label, value, onChange, rows=1, multiple=false }: ImageFie
         <SectionHeader title="最新动态" onSave={() => save(clubHomeApi.updateNews, manual, '手工公告')} saving={saving} />
         <p className="text-gray-400 text-sm">自动展示最近的比赛和体测活动。下方手工公告将置顶显示。</p>
         <div className="space-y-3">
-          {manual.map((item: Record<string, unknown>, i: number) => (
+          {manual.map((item: LooseRecord, i: number) => (
             <div key={item.id || i} className="bg-[#1a1f2e] rounded-xl p-4 border border-gray-800">
               <div className="grid grid-cols-12 gap-2 mb-2">
                 <input
                   type="text"
                   value={item.title || ''}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     const n = [...manual];
                     n[i] = { ...n[i], title: e.target.value };
                     setPath('news.manualItems', n);
@@ -411,7 +439,7 @@ function ImageField({ label, value, onChange, rows=1, multiple=false }: ImageFie
                 <input
                   type="text"
                   value={item.link || ''}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     const n = [...manual];
                     n[i] = { ...n[i], link: e.target.value };
                     setPath('news.manualItems', n);
@@ -422,7 +450,7 @@ function ImageField({ label, value, onChange, rows=1, multiple=false }: ImageFie
                 <input
                   type="date"
                   value={item.publishDate || ''}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     const n = [...manual];
                     n[i] = { ...n[i], publishDate: e.target.value };
                     setPath('news.manualItems', n);
@@ -455,7 +483,7 @@ function ImageField({ label, value, onChange, rows=1, multiple=false }: ImageFie
               <div className="grid grid-cols-12 gap-2">
                 <textarea
                   value={item.content || ''}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
                     const n = [...manual];
                     n[i] = { ...n[i], content: e.target.value };
                     setPath('news.manualItems', n);
@@ -470,7 +498,7 @@ function ImageField({ label, value, onChange, rows=1, multiple=false }: ImageFie
                 <input
                   type="checkbox"
                   checked={!!item.isPinned}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     const n = [...manual];
                     n[i] = { ...n[i], isPinned: e.target.checked };
                     setPath('news.manualItems', n);
@@ -506,20 +534,20 @@ function ImageField({ label, value, onChange, rows=1, multiple=false }: ImageFie
   };
 
   const ActivitiesEd = () => {
-    const [acts, setActs] = useState<Record<string, unknown>[]>(data.activities || []);
-    const [editing, setEditing] = useState<Record<string, unknown> | null>(null);
-    const [showReg, setShowReg] = useState<Record<string, unknown> | null>(null);
-    const [regs, setRegs] = useState<Record<string, unknown>[]>([]);
+    const [acts, setActs] = useState<LooseRecord[]>(data.activities || []);
+    const [editing, setEditing] = useState<LooseRecord | null>(null);
+    const [showReg, setShowReg] = useState<LooseRecord | null>(null);
+    const [regs, setRegs] = useState<LooseRecord[]>([]);
     const [loadingActs, setLoadingActs] = useState(false);
 
     useEffect(() => { setActs(data.activities || []); }, [data.activities]);
 
-    const loadRegs = async  (act: Record<string, unknown>) => {
+    const loadRegs = async  (act: LooseRecord) => {
       const res = await clubActivityApi.getRegistrations(clubId, act.id);
       if (res.data?.success) setRegs(res.data?.data || []);
     };
 
-    const saveAct = async  (act: Record<string, unknown>) => {
+    const saveAct = async  (act: LooseRecord) => {
       setLoadingActs(true);
       try {
         if (act.id) {
@@ -545,7 +573,7 @@ function ImageField({ label, value, onChange, rows=1, multiple=false }: ImageFie
     };
 
     const ActivityModal = () => {
-      const [form, setForm] = useState<Record<string, unknown>>(editing || {
+      const [form, setForm] = useState<LooseRecord>(editing || {
         title: '', type: 'external', description: '', coverImage: '',
         startTime: '', endTime: '', location: '', maxParticipants: 0,
         contactPhone: '', contactWechat: '', isReview: false, reviewContent: '', reviewImages: []
@@ -565,7 +593,7 @@ function ImageField({ label, value, onChange, rows=1, multiple=false }: ImageFie
                 </div>
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">类型</label>
-                  <select value={form.type} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setForm({...form,type:e.target.value})} className="w-full px-3 py-2 bg-[#0f1419] border border-gray-700 rounded-lg text-white text-sm outline-none focus:border-emerald-500">
+                  <select value={form.type} onChange={(e: React.ChangeEvent<HTMLSelectElement>)=>setForm({...form,type:e.target.value})} className="w-full px-3 py-2 bg-[#0f1419] border border-gray-700 rounded-lg text-white text-sm outline-none focus:border-emerald-500">
                     <option value="external">公开活动（足球嘉年华等）</option>
                     <option value="internal">内部活动（球员团建等）</option>
                   </select>
@@ -612,7 +640,7 @@ function ImageField({ label, value, onChange, rows=1, multiple=false }: ImageFie
                   <input type="text" value={form.contactWechat} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setForm({...form,contactWechat:e.target.value})} className="w-full px-3 py-2 bg-[#0f1419] border border-gray-700 rounded-lg text-white text-sm outline-none focus:border-emerald-500"/>
                 </div>
               </div>
-              <label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={!!form.isReview} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>setForm({...form,isReview:e.target.checked})} className="w-4 h-4 rounded border-gray-600 bg-[#0f1419] text-emerald-500"/>作为回顾展示（仅已结束活动）</label>
+              <label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={!!form.isReview} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setForm({...form,isReview:e.target.checked})} className="w-4 h-4 rounded border-gray-600 bg-[#0f1419] text-emerald-500"/>作为回顾展示（仅已结束活动）</label>
               {form.isReview && (
                 <>
                   <div>
@@ -639,12 +667,12 @@ function ImageField({ label, value, onChange, rows=1, multiple=false }: ImageFie
       <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
         <div className="bg-[#1a1f2e] rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto border border-gray-700 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-white">报名名单 - {showReg.title}</h3>
+            <h3 className="text-lg font-bold text-white">报名名单 - {showReg?.title}</h3>
             <button onClick={()=>setShowReg(null)} className="p-1 hover:bg-gray-800 rounded"><X className="w-5 h-5 text-gray-400"/></button>
           </div>
           <div className="space-y-2">
             {regs.length === 0 && <p className="text-gray-400 text-sm">暂无报名</p>}
-            {regs.map((r: Record<string, unknown>)=> (
+            {regs.map((r: LooseRecord)=> (
               <div key={r.id} className="bg-[#0f1419] rounded-xl p-3 border border-gray-800 flex items-center justify-between">
                 <div>
                   <div className="text-white text-sm font-medium">{r.name}</div>
@@ -668,7 +696,7 @@ function ImageField({ label, value, onChange, rows=1, multiple=false }: ImageFie
           <button onClick={()=>setEditing({title:'',type:'external',description:'',coverImage:'',startTime:'',endTime:'',location:'',maxParticipants:0,contactPhone:'',contactWechat:'',isReview:false,reviewContent:'',reviewImages:[]})} className="px-3 py-1.5 text-sm bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg flex items-center gap-1"><Plus className="w-4 h-4"/>新建活动</button>
         </div>
         <div className="space-y-3">
-          {acts.map((act: Record<string, unknown>)=> (
+          {acts.map((act: LooseRecord)=> (
             <div key={act.id} className="bg-[#1a1f2e] rounded-xl p-4 border border-gray-800">
               <div className="flex items-start gap-4">
                 {act.coverImage && <img src={act.coverImage} alt="" className="w-24 h-16 object-cover rounded-lg flex-shrink-0"/>}
@@ -705,12 +733,12 @@ function ImageField({ label, value, onChange, rows=1, multiple=false }: ImageFie
       case 'hero': return HeroEd();
       case 'about': return AboutEd();
       case 'achievements': return AchievementsEd();
-      case 'teams': return Selector({ items: data.teams||[], field: 'id', label: 'teams', apiFn: clubHomeApi.updateTeams, extra: (item: Record<string, unknown>)=>(
-        <label className="flex items-center gap-1 text-xs text-gray-300"><input type="checkbox" checked={item.showPlayerCount!==false} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>{ const n=(data.teams||[]).map((x: Record<string, unknown>)=>x.id===item.id?{...x,showPlayerCount:e.target.checked}:x); setPath('teams',n); }} className="w-3 h-3 rounded border-gray-600 bg-[#1a1f2e] text-emerald-500"/>显示人数</label>
+      case 'teams': return Selector({ items: data.teams||[], field: 'id', label: 'teams', apiFn: clubHomeApi.updateTeams, extra: (item: LooseRecord)=>(
+        <label className="flex items-center gap-1 text-xs text-gray-300"><input type="checkbox" checked={item.showPlayerCount!==false} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>{ const n=(data.teams||[]).map((x: LooseRecord)=>x.id===item.id?{...x,showPlayerCount:e.target.checked}:x); setPath('teams',n); }} className="w-3 h-3 rounded border-gray-600 bg-[#1a1f2e] text-emerald-500"/>显示人数</label>
       )});
       case 'coaches': return Selector({ items: data.coaches||[], field: 'user_id', label: 'coaches', apiFn: clubHomeApi.updateCoaches });
-      case 'players': return Selector({ items: data.players||[], field: 'user_id', label: 'players', apiFn: clubHomeApi.updatePlayers, extra: (item: Record<string, unknown>)=>(
-        <input type="text" value={item.recommendText||''} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>{ const n=(data.players||[]).map((x: Record<string, unknown>)=>x.user_id===item.user_id?{...x,recommendText:e.target.value}:x); setPath('players',n); }} placeholder="推荐语" className="w-28 px-2 py-1 bg-[#0f1419] border border-gray-700 rounded text-white text-xs outline-none focus:border-emerald-500"/>
+      case 'players': return Selector({ items: data.players||[], field: 'user_id', label: 'players', apiFn: clubHomeApi.updatePlayers, extra: (item: LooseRecord)=>(
+        <input type="text" value={item.recommendText||''} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>)=>{ const n=(data.players||[]).map((x: LooseRecord)=>x.user_id===item.user_id?{...x,recommendText:e.target.value}:x); setPath('players',n); }} placeholder="推荐语" className="w-28 px-2 py-1 bg-[#0f1419] border border-gray-700 rounded text-white text-xs outline-none focus:border-emerald-500"/>
       )});
       case 'facilities': return FacilitiesEd();
       case 'news': return NewsEd();

@@ -75,7 +75,7 @@ const coachPositionOptions = [
 ];
 
 // 角色配置：决定显示哪些字段
-const roleConfig: Record<UserRole, {
+const roleConfig: Record<string, {
   title: string;
   subtitle: string;
   fields: ('avatar' | 'nickname' | 'realName' | 'birthDate' | 'gender' | 'region' | 'signature' | 'position')[];
@@ -134,6 +134,19 @@ const roleConfig: Record<UserRole, {
       position: '执教位置',
     },
   },
+  scout: {
+    title: '基础档案',
+    subtitle: '完善您的球探资料',
+    fields: ['avatar', 'realName', 'birthDate', 'gender', 'region', 'signature'],
+    labels: {
+      avatar: '头像',
+      realName: '真实姓名',
+      birthDate: '出生日期',
+      gender: '性别',
+      region: '所在城市',
+      signature: '球探简介',
+    },
+  },
 };
 
 export interface BaseInfoData {
@@ -148,6 +161,7 @@ export interface BaseInfoData {
   country?: string;
   overseasCity?: string;
   signature?: string;
+  bio?: string;
   position?: string;  // 执教位置（教练用）
 }
 
@@ -159,7 +173,7 @@ interface Step3BaseInfoProps {
 }
 
 const Step3BaseInfo: React.FC<Step3BaseInfoProps> = ({ role, onNext, onBack, defaultValues }) => {
-  const config = roleConfig[role];
+  const config = roleConfig[role] || roleConfig.player;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<BaseInfoData>({
     avatar: defaultValues?.avatar || '',
@@ -238,7 +252,7 @@ const Step3BaseInfo: React.FC<Step3BaseInfoProps> = ({ role, onNext, onBack, def
   };
 
   // 获取角色主题
-  const theme = roleThemes[role];
+  const theme = roleThemes[role] || roleThemes.player;
 
   // 渲染头像上传
   const renderAvatar = () => (

@@ -12,6 +12,7 @@ export class PlayerDashboardPage {
   readonly growthLink: Locator;
   readonly matchReportsLink: Locator;
   readonly weeklyReportsLink: Locator;
+  readonly trainingGroupButton: Locator;
   readonly sidebar: Locator;
   readonly logoutButton: Locator;
 
@@ -28,6 +29,7 @@ export class PlayerDashboardPage {
     this.growthLink = this.sidebar.locator('text=成长记录').first();
     this.matchReportsLink = this.sidebar.locator('text=我的比赛').first();
     this.weeklyReportsLink = this.sidebar.locator('text=我的周报').first();
+    this.trainingGroupButton = this.sidebar.getByRole('button', { name: '训练相关' }).first();
     this.logoutButton = page.locator('text=退出登录').first();
   }
 
@@ -43,6 +45,15 @@ export class PlayerDashboardPage {
       // ignore scroll errors
     }
     await locator.click({ force: true });
+  }
+
+  async ensureSidebarItemVisible(locator: Locator, groupButton?: Locator) {
+    if (await locator.isVisible().catch(() => false)) return;
+    if (groupButton) {
+      await groupButton.click();
+      await this.page.waitForTimeout(300);
+    }
+    await expect(locator).toBeVisible({ timeout: 5000 });
   }
 
   async clickHome() {
@@ -76,11 +87,13 @@ export class PlayerDashboardPage {
   }
 
   async clickMatchReports() {
+    await this.ensureSidebarItemVisible(this.matchReportsLink, this.trainingGroupButton);
     await this.clickWithScroll(this.matchReportsLink);
     await this.page.waitForLoadState('networkidle');
   }
 
   async clickWeeklyReports() {
+    await this.ensureSidebarItemVisible(this.weeklyReportsLink, this.trainingGroupButton);
     await this.clickWithScroll(this.weeklyReportsLink);
     await this.page.waitForLoadState('networkidle');
   }

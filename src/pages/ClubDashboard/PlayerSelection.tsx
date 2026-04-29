@@ -6,7 +6,7 @@ import {
   BarChart3, X, CheckSquare, Square, Zap, Trophy, Activity,
   Save, Bookmark, Trash2 as TrashIcon, Loader2
 } from 'lucide-react';
-import ReactECharts from 'echarts-for-react';
+import ReactECharts from '../../components/charts/ReactECharts';
 import ExportComplianceModal from './components/ExportComplianceModal';
 import type { ExportPurpose } from './components/ExportComplianceModal';
 
@@ -69,6 +69,31 @@ const positionOptions = [
   { value: 'goalkeeper', label: '门将' },
 ];
 
+const clampRadarScore = (value: number) => Math.max(0, Math.min(5, Number.isFinite(value) ? value : 0));
+
+const scoreLowerIsBetter = (value: number | undefined, best: number, worst: number) => {
+  if (!value || value <= 0) return null;
+  return clampRadarScore(((worst - value) / (worst - best)) * 5);
+};
+
+const scoreHigherIsBetter = (value: number | undefined, baseline: number, target: number) => {
+  if (!value || value <= 0) return null;
+  return clampRadarScore(((value - baseline) / (target - baseline)) * 5);
+};
+
+const averageScores = (scores: Array<number | null>) => {
+  const validScores = scores.filter((score): score is number => score !== null);
+  if (validScores.length === 0) return 0;
+  return clampRadarScore(validScores.reduce((sum, score) => sum + score, 0) / validScores.length);
+};
+
+const getPhysicalRadarScore = (physicalTest: SelectionPlayer['physicalTest']) => averageScores([
+  scoreLowerIsBetter(physicalTest?.sprint50m, 6.8, 10.5),
+  scoreHigherIsBetter(physicalTest?.standingLongJump, 120, 260),
+]);
+
+const getMatchRadarScore = (matchCount: number) => clampRadarScore(matchCount);
+
 const PlayerSelection: React.FC<PlayerSelectionProps> = ({ onBack, clubName }) => {
   const [players, setPlayers] = useState<SelectionPlayer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,11 +125,13 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({ onBack, clubName }) =
       const res = await clubApi.getShortlist();
       const data = (res.data?.data || res.data) as unknown as ShortlistApiItem[];
       if (Array.isArray(data)) {
-        setShortlist(data.map(item => ({
-          playerId: item.playerId ?? item.player_id,
-          note: item.note ?? '',
-          addedAt: item.addedAt ?? item.created_at ?? new Date().toISOString(),
-        })));
+        setShortlist(data
+          .map(item => ({
+            playerId: item.playerId ?? item.player_id,
+            note: item.note ?? '',
+            addedAt: item.addedAt ?? item.created_at ?? new Date().toISOString(),
+          }))
+          .filter((item): item is { playerId: number; note: string; addedAt: string } => typeof item.playerId === 'number'));
       }
     } catch (err) {
       console.error('加载候选名单失败:', err);
@@ -414,12 +441,8 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({ onBack, clubName }) =
             p.weeklyAverage?.technique || 0,
             p.weeklyAverage?.tactics || 0,
             p.weeklyAverage?.knowledge || 0,
-            // 体测综合分：50米跑越快分越高，立定跳远越远分越高（简单模拟）
-            Math.min(5, (
-              (p.physicalTest?.sprint50m ? Math.max(0, (9 - p.physicalTest.sprint50m) / 1.5) : 0) +
-              (p.physicalTest?.standingLongJump ? p.physicalTest.standingLongJump / 50 : 0)
-            ) / 2),
-            Math.min(5, p.matchCount / 3),
+            getPhysicalRadarScore(p.physicalTest),
+            getMatchRadarScore(p.matchCount),
           ],
           name: p.name,
         })),
@@ -832,7 +855,7 @@ const PlayerSelection: React.FC<PlayerSelectionProps> = ({ onBack, clubName }) =
                         <td className="px-4 py-3 text-gray-300 font-medium">{row.label}</td>
                         {selectedPlayers.map(p => (
                           <td key={p.id} className="px-4 py-3 text-center text-gray-300">
-                            {row.get ? row.get(p) : (p as Record<string, string | number>)[row.key!]}{row.suffix || ''}
+                            {row.get ? row.get(p) : (p as unknown as Record<string, string | number>)[row.key!]}{row.suffix || ''}
                           </td>
                         ))}
                       </tr>

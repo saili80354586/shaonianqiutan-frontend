@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, TrendingUp, Award, Users, BarChart3 } from 'lucide-react';
-import ReactECharts from 'echarts-for-react';
+import { useNavigate } from 'react-router-dom';
+import ReactECharts from '../../components/charts/ReactECharts';
 import { clubApi } from '../../services/api';
 
 interface AnalyticsProps {
-  onBack: () => void;
+  onBack?: () => void;
   onDrillDown?: (filters: { ageGroup?: string; position?: string }) => void;
 }
 
@@ -42,6 +43,8 @@ interface AnalyticsData {
 }
 
 const Analytics: React.FC<AnalyticsProps> = ({ onBack, onDrillDown }) => {
+  const navigate = useNavigate();
+  const handleBack = onBack || (() => navigate('/club/dashboard'));
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [ageGroupFilter, setAgeGroupFilter] = useState('all');
@@ -83,7 +86,7 @@ const Analytics: React.FC<AnalyticsProps> = ({ onBack, onDrillDown }) => {
       <div className="p-8">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <button onClick={onBack} className="p-2 hover:bg-gray-800 rounded-xl transition-colors text-gray-400 hover:text-white">
+            <button onClick={handleBack} className="p-2 hover:bg-gray-800 rounded-xl transition-colors text-gray-400 hover:text-white">
               <ArrowLeft className="w-6 h-6" />
             </button>
             <div>

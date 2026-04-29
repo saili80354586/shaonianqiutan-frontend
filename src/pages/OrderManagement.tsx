@@ -26,16 +26,16 @@ const OrderManagement: React.FC = () => {
       const response = await adminApi.listOrders({ page: currentPage, pageSize });
       const payload = unwrapApiResponse(response);
       if (payload.success && payload.data) {
-        let filteredOrders = payload.data.list;
+        let filteredOrders: Order[] = payload.data.list || [];
         
         // 状态筛选
         if (statusFilter !== 'all') {
-          filteredOrders = filteredOrders.filter(o => o.status === statusFilter);
+          filteredOrders = filteredOrders.filter((o: Order) => o.status === statusFilter);
         }
         
         // 搜索筛选
         if (searchQuery) {
-          filteredOrders = filteredOrders.filter(o => 
+          filteredOrders = filteredOrders.filter((o: Order) =>
             o.order_no?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             o.user?.phone?.includes(searchQuery) ||
             o.user?.nickname?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -44,12 +44,12 @@ const OrderManagement: React.FC = () => {
         
         // 日期筛选
         if (dateRange.start) {
-          filteredOrders = filteredOrders.filter(o => 
+          filteredOrders = filteredOrders.filter((o: Order) =>
             new Date(o.created_at) >= new Date(dateRange.start)
           );
         }
         if (dateRange.end) {
-          filteredOrders = filteredOrders.filter(o => 
+          filteredOrders = filteredOrders.filter((o: Order) =>
             new Date(o.created_at) <= new Date(dateRange.end)
           );
         }
@@ -85,7 +85,7 @@ const OrderManagement: React.FC = () => {
     }
 
     try {
-      await adminApi.cancelOrder(order.id.toString());
+      await adminApi.cancelOrder(order.id);
       setOrders(orders.map(o => o.id === order.id ? { ...o, status: 'cancelled' } : o));
       alert('订单已取消');
     } catch (error) {

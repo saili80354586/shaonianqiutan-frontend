@@ -20,17 +20,15 @@ import {
 } from 'lucide-react';
 import { orderApi, reportApi } from '../services/api';
 import { Loading } from '../components';
-import type { Order, Report } from '../types';
+import type { Order, Report, User as AppUser } from '../types';
 import { useAuthStore } from '../store';
 
 // 扩展订单类型以支持更多字段
-interface ExtendedOrder extends Order {
+interface ExtendedOrder extends Omit<Order, 'analyst'> {
   video_url?: string;
   video_filename?: string;
-  analyst?: {
+  analyst?: Partial<AppUser> & {
     id: number;
-    name: string;
-    avatar?: string;
     title?: string;
     rating?: number;
   };

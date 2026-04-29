@@ -26,13 +26,13 @@ test.describe('俱乐部后台功能测试', () => {
     });
   });
 
-  test('2. 概览页面加载', async ({ page }) => {
-    await test.step('登录并进入概览页面', async () => {
+  test('2. 工作台首页加载', async ({ page }) => {
+    await test.step('登录并进入工作台首页', async () => {
       await loginPage.loginAsClub();
       await dashboardPage.clickOverview();
     });
 
-    await test.step('验证概览页面加载成功', async () => {
+    await test.step('验证工作台首页加载成功', async () => {
       await expect(page.locator('body')).toBeVisible();
     });
   });
@@ -81,13 +81,13 @@ test.describe('俱乐部后台功能测试', () => {
     });
   });
 
-  test('7. 比赛总结模块（新功能）', async ({ page }) => {
-    await test.step('登录并进入比赛总结', async () => {
+  test('7. 比赛管理模块（新功能）', async ({ page }) => {
+    await test.step('登录并进入比赛管理', async () => {
       await loginPage.loginAsClub();
       await dashboardPage.clickMatchReports();
     });
 
-    await test.step('验证比赛总结页面加载', async () => {
+    await test.step('验证比赛管理页面加载', async () => {
       await expect(page.locator('body')).toBeVisible();
     });
   });
@@ -106,7 +106,7 @@ test.describe('俱乐部后台功能测试', () => {
   test('9. 数据统计模块', async ({ page }) => {
     await test.step('登录并进入数据统计', async () => {
       await loginPage.loginAsClub();
-      await dashboardPage.clickAnalytics();
+      await dashboardPage.clickStats();
     });
 
     await test.step('验证数据统计页面加载', async () => {

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Calendar, MapPin, Users, CheckCircle, Clock, FileText, ChevronRight, Play, Trash2, Bell } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, MapPin, Users, CheckCircle, FileText, ChevronRight, Play, Bell } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { clubApi, ptApi } from '../../services/api';
+import { ptApi } from '../../services/api';
 import { ListItemSkeleton } from '../../components/ui/loading';
 
 interface PhysicalTest {
@@ -21,10 +22,14 @@ interface PhysicalTest {
 }
 
 interface PhysicalTestsProps {
-  onBack: () => void;
+  onBack?: () => void;
+  onCreateNew?: () => void;
+  onViewRecord?: (id: number) => void;
+  onViewReport?: (id: number) => void;
 }
 
-const PhysicalTests: React.FC<PhysicalTestsProps> = ({ onBack }) => {
+const PhysicalTests: React.FC<PhysicalTestsProps> = ({ onBack, onCreateNew, onViewRecord, onViewReport }) => {
+  const navigate = useNavigate();
   const [tests, setTests] = useState<PhysicalTest[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 0 });
@@ -37,7 +42,7 @@ const PhysicalTests: React.FC<PhysicalTestsProps> = ({ onBack }) => {
   const loadTests = async () => {
     setLoading(true);
     try {
-      const res = await clubApi.getPhysicalTests({
+      const res = await ptApi.getPhysicalTests({
         page: pagination.page,
         pageSize: pagination.pageSize,
         status: statusFilter !== 'all' ? statusFilter : undefined,
@@ -87,7 +92,7 @@ const PhysicalTests: React.FC<PhysicalTestsProps> = ({ onBack }) => {
         {/* 头部 */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <button onClick={onBack} className="p-2 hover:bg-gray-800 rounded-xl transition-colors text-gray-400 hover:text-white">
+            <button onClick={onBack || (() => navigate('/club/dashboard'))} className="p-2 hover:bg-gray-800 rounded-xl transition-colors text-gray-400 hover:text-white">
               <ArrowLeft className="w-6 h-6" />
             </button>
             <div>
@@ -95,7 +100,7 @@ const PhysicalTests: React.FC<PhysicalTestsProps> = ({ onBack }) => {
               <p className="text-gray-400 mt-1">共 {pagination.total} 个体测活动</p>
             </div>
           </div>
-          <button onClick={() => window.location.href = '/club/physical-tests/create'} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition-colors">
+          <button onClick={onCreateNew || (() => navigate('/club/physical-tests/create'))} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition-colors">
             <Plus className="w-4 h-4" /> 创建体测
           </button>
         </div>
@@ -124,7 +129,7 @@ const PhysicalTests: React.FC<PhysicalTestsProps> = ({ onBack }) => {
               <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-4" />
               <p className="text-gray-400">暂无体测活动</p>
               <button
-                onClick={() => window.location.href = '/club/physical-tests/create'}
+                onClick={onCreateNew || (() => navigate('/club/physical-tests/create'))}
                 className="mt-4 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition-colors"
               >
                 创建第一个体测活动
@@ -195,14 +200,17 @@ const PhysicalTests: React.FC<PhysicalTestsProps> = ({ onBack }) => {
                       )}
                       {test.status === 'ongoing' && (
                         <button
-                          onClick={() => window.location.href = `/club/physical-tests/${test.id}/record`}
+                          onClick={() => onViewRecord ? onViewRecord(test.id) : navigate(`/club/physical-tests/${test.id}/record`)}
                           className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition-colors"
                         >
                           <CheckCircle className="w-4 h-4" /> 录入数据
                         </button>
                       )}
                       {(test.status === 'completed' || test.status === 'ongoing') && (
-                        <button className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition-colors">
+                        <button
+                          onClick={() => onViewReport ? onViewReport(test.id) : navigate(`/club/reports/${test.id}`)}
+                          className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition-colors"
+                        >
                           <FileText className="w-4 h-4" /> 查看报告
                         </button>
                       )}

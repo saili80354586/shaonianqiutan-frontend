@@ -18,32 +18,138 @@ import { CoachDashboardPage } from '../pages/CoachDashboardPage';
 // 生成唯一比赛名称，避免测试数据冲突
 const generateMatchName = () => `E2E测试-${Date.now()}`;
 
+const MATCH_NOTIFICATION_CLEANUP_ACCOUNTS = [
+  '13800000020',
+  '13800002001',
+  '13800002002',
+  '13800002003',
+  '13800002004',
+  '13800002005',
+  '13800002006',
+  '13800002007',
+  '13800002008',
+  '13800002009',
+  '13800002010',
+  '13800002011',
+  '13800002012',
+];
+
+async function expectCoachTeamsPage(page: Page) {
+  await expect(page.getByRole('heading', { name: '我的球队' }).last()).toBeVisible({ timeout: 10000 });
+}
+
+async function openFirstClubMatchTeam(page: Page) {
+  const firstTeamCard = page
+    .locator('main div[class*="cursor-pointer"]')
+    .filter({ hasText: '管理比赛' })
+    .first();
+  await expect(firstTeamCard).toBeVisible({ timeout: 10000 });
+  await firstTeamCard.click();
+  await page.waitForTimeout(500);
+}
+
 /**
  * 通过页面内 fetch 清理测试创建的比赛总结
  */
 async function cleanupTestMatch(page: Page, matchName: string) {
   try {
     await page.evaluate(async (name) => {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-      const listRes = await fetch('/api/match-summaries', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!listRes.ok) return;
-      const contentType = listRes.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) return;
-      const result = await listRes.json();
-      const match = result.data?.list?.find((m: any) => m.matchName === name);
-      if (match) {
-        await fetch(`/api/match-summaries/${match.id}`, {
+      const deleteWithToken = async (token: string | null) => {
+        if (!token) return false;
+        const listRes = await fetch('/api/coach/match-summaries?pageSize=50', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!listRes.ok) return false;
+        const contentType = listRes.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) return false;
+        const result = await listRes.json();
+        const match = result.data?.list?.find((m: any) => m.matchName === name);
+        if (!match) return true;
+        const deleteRes = await fetch(`/api/match-summaries/${match.id}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` },
         });
-      }
+        return deleteRes.ok;
+      };
+
+      if (await deleteWithToken(localStorage.getItem('token'))) return;
+
+      const loginRes = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: '13800000020', password: '123456' }),
+      });
+      if (!loginRes.ok) return;
+      const loginJson = await loginRes.json();
+      await deleteWithToken(loginJson.data?.token || null);
     }, matchName);
   } catch (e) {
     console.log('清理测试数据失败（可忽略）:', e);
   }
+}
+
+/**
+ * 清理比赛流转中由测试比赛名触发的通知，只删除当前测试名命中的通知。
+ */
+async function cleanupTestNotifications(page: Page, matchName: string) {
+  try {
+    await page.evaluate(async ({ name, accounts }) => {
+      type NotificationListItem = {
+        id: number;
+        title?: string;
+        content?: string;
+      };
+
+      const login = async (phone: string) => {
+        const loginRes = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, password: '123456' }),
+        });
+        if (!loginRes.ok) return null;
+        const loginJson = await loginRes.json();
+        return loginJson.data?.token || null;
+      };
+
+      const cleanupWithToken = async (token: string | null) => {
+        if (!token) return;
+        const listRes = await fetch('/api/notifications?page=1&pageSize=100', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!listRes.ok) return;
+        const contentType = listRes.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) return;
+
+        const result = await listRes.json();
+        const list = (result.data?.list || []) as NotificationListItem[];
+        const matches = list.filter((notification) =>
+          (notification.title || '').includes(name) ||
+          (notification.content || '').includes(name)
+        );
+
+        for (const notification of matches) {
+          await fetch(`/api/notifications/${notification.id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+        }
+      };
+
+      await cleanupWithToken(localStorage.getItem('token'));
+      for (const phone of accounts) {
+        await cleanupWithToken(await login(phone));
+      }
+    }, { name: matchName, accounts: MATCH_NOTIFICATION_CLEANUP_ACCOUNTS });
+  } catch (e) {
+    console.log('清理测试通知失败（可忽略）:', e);
+  }
+}
+
+async function cleanupTestMatchArtifacts(page: Page, matchName: string) {
+  await cleanupTestNotifications(page, matchName);
+  await cleanupTestMatch(page, matchName);
+  await page.waitForTimeout(300);
+  await cleanupTestNotifications(page, matchName);
 }
 
 test.describe('比赛管理 - 教练端功能', () => {
@@ -69,7 +175,7 @@ test.describe('比赛管理 - 教练端功能', () => {
 
     await test.step('2. 进入我的球队并选择第一个球队', async () => {
       await coachPage.clickMyTeams();
-      await expect(page.locator('h1:has-text("我的球队")')).toBeVisible({ timeout: 10000 });
+      await expectCoachTeamsPage(page);
       await coachPage.clickFirstTeamCard();
     });
 
@@ -99,7 +205,7 @@ test.describe('比赛管理 - 教练端功能', () => {
     });
 
     await test.step('7. 清理测试数据', async () => {
-      await cleanupTestMatch(page, matchName);
+      await cleanupTestMatchArtifacts(page, matchName);
     });
   });
 });
@@ -113,20 +219,23 @@ test.describe('比赛管理 - 俱乐部端筛选与统计', () => {
     clubPage = new ClubDashboardPage(page);
   });
 
-  test('比赛总结状态筛选与统计卡片展示', async ({ page }) => {
-    await test.step('1. 俱乐部账号登录并进入比赛总结', async () => {
+  test('比赛管理状态筛选与统计卡片展示', async ({ page }) => {
+    await test.step('1. 俱乐部账号登录并进入比赛管理', async () => {
       await loginPage.loginAsClub();
       await clubPage.clickMatchReports();
     });
 
     await test.step('2. 验证统计卡片存在', async () => {
-      await expect(page.locator('text=全部').first()).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText('总比赛数').first()).toBeVisible({ timeout: 10000 });
       await expect(page.locator('text=待自评').first()).toBeVisible({ timeout: 5000 });
       await expect(page.locator('text=待点评').first()).toBeVisible({ timeout: 5000 });
       await expect(page.locator('text=已完成').first()).toBeVisible({ timeout: 5000 });
     });
 
     await test.step('3. 切换各个状态 Tab', async () => {
+      await openFirstClubMatchTeam(page);
+      await expect(page.locator('text=全部').first()).toBeVisible({ timeout: 10000 });
+
       await clubPage.clickStatusTab('pending');
       await expect(page.locator('button:has-text("待自评")').filter({ has: page.locator('span') }).first()).toBeVisible({ timeout: 5000 });
 
@@ -159,13 +268,18 @@ test.describe('比赛管理 - 完整状态流转测试', () => {
     });
   });
 
+  test.afterEach(async ({ page }) => {
+    if (!matchName) return;
+    await cleanupTestMatchArtifacts(page, matchName);
+  });
+
   test('pending → player_submitted → completed 完整流转', async ({ page }) => {
     test.setTimeout(120000);
 
     await test.step('1. 教练创建比赛', async () => {
       await loginPage.loginAsCoach();
       await coachPage.clickMyTeams();
-      await expect(page.locator('h1:has-text("我的球队")')).toBeVisible({ timeout: 10000 });
+      await expectCoachTeamsPage(page);
       await coachPage.clickFirstTeamCard();
       await coachPage.clickMatchTab();
       await coachPage.clickCreateMatchInTeamDetail();
@@ -199,10 +313,10 @@ test.describe('比赛管理 - 完整状态流转测试', () => {
       const performanceTextarea = page.locator('label:has-text("本场表现")').locator('..').locator('textarea').first();
       await performanceTextarea.fill('本场比赛跑动积极，防守到位，但在进攻端的临门一脚还需要提高。');
 
-      const goalsInput = page.locator('label:has-text("进球数")').locator('..').locator('input');
+      const goalsInput = page.getByRole('spinbutton').nth(0);
       await goalsInput.fill('1');
 
-      const assistsInput = page.locator('label:has-text("助攻数")').locator('..').locator('input');
+      const assistsInput = page.getByRole('spinbutton').nth(1);
       await assistsInput.fill('0');
 
       const highlightsInput = page.locator('label:has-text("高光时刻")').locator('..').locator('input, textarea').first();
@@ -211,17 +325,18 @@ test.describe('比赛管理 - 完整状态流转测试', () => {
       // 提交自评
       await playerPage.submitPlayerSelfReview();
 
-      // 关闭弹窗后验证状态变为"待点评"
-      await page.waitForTimeout(500);
-      const card = page.locator('div').filter({ hasText: matchName }).first();
-      // 状态 badge 是一个 span，使用更精确的定位器避免匹配到 Tab 按钮
-      await expect(card.locator('span').filter({ hasText: '待点评' }).first()).toBeVisible({ timeout: 10000 });
+      // 自评成功后应回到"我的比赛"并刷新该比赛状态
+      await expect(page.getByRole('heading', { name: '我的比赛' }).first()).toBeVisible({ timeout: 10000 });
+      const card = page.locator('main div').filter({ hasText: matchName }).filter({
+        has: page.locator('span').filter({ hasText: '待点评' }),
+      }).first();
+      await expect(card).toBeVisible({ timeout: 10000 });
     });
 
     await test.step('3. 教练提交比赛点评', async () => {
       await loginPage.loginAsCoach();
       await coachPage.clickMyTeams();
-      await expect(page.locator('h1:has-text("我的球队")')).toBeVisible({ timeout: 10000 });
+      await expectCoachTeamsPage(page);
       await coachPage.clickFirstTeamCard();
       await coachPage.clickMatchTab();
 
@@ -234,24 +349,30 @@ test.describe('比赛管理 - 完整状态流转测试', () => {
       await page.waitForTimeout(800);
 
       // 在 MatchSummaryReview 列表中点击目标比赛卡片进入详情
-      await expect(page.locator('h1:has-text("比赛总结管理")')).toBeVisible({ timeout: 10000 });
-      const listCard = page.locator('div').filter({ hasText: matchName }).first();
+      await expect(page.locator('h1:has-text("比赛记录")')).toBeVisible({ timeout: 10000 });
+      const listCard = page.locator('button').filter({ hasText: matchName }).first();
       await expect(listCard).toBeVisible({ timeout: 10000 });
       await listCard.click();
       await page.waitForTimeout(500);
 
-      // 填写教练点评（详情页直接展示表单）
-      const overallTextarea = page.locator('label:has-text("整体评价")').locator('+ textarea, ~ textarea').first();
+      // 进入整体点评表单
+      const addOverallReviewButton = page.locator('button:has-text("添加"), button:has-text("编辑")').first();
+      if (await addOverallReviewButton.isVisible().catch(() => false)) {
+        await addOverallReviewButton.click();
+      }
+
+      // 填写教练点评
+      const overallTextarea = page.locator('label:has-text("整体评价")').locator('..').locator('textarea').first();
       await overallTextarea.fill('全队整体表现不错，防守端保持了很好的阵型。');
 
-      const tacticalTextarea = page.locator('label:has-text("战术分析")').locator('+ textarea, ~ textarea').first();
+      const tacticalTextarea = page.locator('label:has-text("战术分析")').locator('..').locator('textarea').first();
       await tacticalTextarea.fill('高位逼抢执行到位，但转换进攻速度可以更快。');
 
-      const keyMomentsTextarea = page.locator('label:has-text("关键时刻")').locator('+ textarea, ~ textarea').first();
+      const keyMomentsTextarea = page.locator('label:has-text("关键时刻")').locator('..').locator('textarea').first();
       await keyMomentsTextarea.fill('下半场开场10分钟的扳平进球是比赛转折点。');
 
       // 提交点评
-      const submitButton = page.locator('button:has-text("提交点评")').first();
+      const submitButton = page.locator('button:has-text("保存点评"), button:has-text("提交点评")').first();
       await expect(submitButton).toBeEnabled({ timeout: 5000 });
       await submitButton.click();
 
@@ -267,10 +388,10 @@ test.describe('比赛管理 - 完整状态流转测试', () => {
         await page.waitForTimeout(500);
       }
       // 如果不在 TeamDetail，直接导航
-      if (!await page.locator('h1:has-text("U12一队")').isVisible().catch(() => false)) {
+      if (!await page.getByRole('button', { name: /创建比赛/ }).first().isVisible().catch(() => false)) {
         await page.goto('/coach/dashboard');
         await coachPage.clickMyTeams();
-        await expect(page.locator('h1:has-text("我的球队")')).toBeVisible({ timeout: 10000 });
+        await expectCoachTeamsPage(page);
         await coachPage.clickFirstTeamCard();
         await coachPage.clickMatchTab();
       }
@@ -278,7 +399,7 @@ test.describe('比赛管理 - 完整状态流转测试', () => {
     });
 
     await test.step('5. 清理测试数据', async () => {
-      await cleanupTestMatch(page, matchName);
+      await cleanupTestMatchArtifacts(page, matchName);
     });
   });
 });

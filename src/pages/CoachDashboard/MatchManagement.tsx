@@ -3,7 +3,7 @@ import {
   Plus, Search, Filter, Calendar, Trophy, Users, Clock, CheckCircle,
   ArrowRight, ArrowLeft, X, Edit, Eye, Loader2
 } from 'lucide-react';
-import type { MatchSummaryListItem, MatchStatus } from '@/services/matchApi';
+import type { MatchSummary, MatchSummaryListItem, MatchStatus } from '@/services/matchApi';
 import { matchApi } from '@/services/matchApi';
 import { MatchDetailView } from '@/components/MATCH/MatchDetailView';
 import { CoachReviewPanel } from '@/components/MATCH/CoachReviewPanel';

@@ -1,46 +1,43 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import type { Order } from '../../types';
+import React, { useState, useEffect, Suspense, lazy, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { clubApi } from '../../services/api';
-import { useAuthStore } from '../../store';
-import ReactECharts from 'echarts-for-react';
 import {
-  Users, FileText, TrendingUp, Calendar, BarChart3, Plus,
-  ChevronRight, Clock, CheckCircle, AlertCircle,
-  Building2, Shield, Award, Zap, Home, PieChart, CreditCard,
+  Users, FileText, Calendar, BarChart3, Plus,
+  ChevronRight, CheckCircle,
+  Shield, Award, Zap, PieChart, CreditCard,
   ClipboardList, Activity, Globe, Trophy, Bell, Edit3,
-  LayoutDashboard, Inbox, BarChart2, Menu, type LucideIcon
+  Menu, type LucideIcon
 } from 'lucide-react';
 import { DashboardLayout } from '../../components/dashboard';
 import type { SidebarConfig } from '../../components/dashboard/types';
 import { CreatePostModal } from '../ScoutMap/SocialFeed';
 
 // 子组件
-import PlayerManagement from './PlayerManagement';
-import PlayerDetail from './PlayerDetail';
-import CoachManagement from './CoachManagement';
-import TeamManagement from './TeamManagement';
-import TeamDetail from './TeamDetail';
-import BatchOrders from './BatchOrders';
-import BatchOrder from './BatchOrder';
-import OrderManagement from './OrderManagement';
-import Analytics from './Analytics';
-import ClubStats from './ClubStats';
-
-import ClubHomeEditor from './ClubHomeEditor';
-import ClubHomePage from './ClubHomePage';
-import PhysicalTests from './PhysicalTests';
-import CreatePhysicalTest from './CreatePhysicalTest';
-import PhysicalTestRecord from './PhysicalTestRecord';
-import PhysicalTestReport from './PhysicalTestReport';
-import WeeklyReports from './WeeklyReports';
-import MatchReports from './MatchReports';
-import CoachDetail from './CoachDetail';
-import PlayerSelection from './PlayerSelection';
-import TrainingPlans from './TrainingPlans';
-import MatchCalendar from './MatchCalendar';
-import AdminOperationLogs from './AdminOperationLogs';
-import ClubAnnouncements from './ClubAnnouncements';
+const PlayerManagement = lazy(() => import('./PlayerManagement'));
+const PlayerDetail = lazy(() => import('./PlayerDetail'));
+const CoachManagement = lazy(() => import('./CoachManagement'));
+const TeamManagement = lazy(() => import('./TeamManagement'));
+const TeamDetail = lazy(() => import('./TeamDetail'));
+const BatchOrders = lazy(() => import('./BatchOrders'));
+const BatchOrder = lazy(() => import('./BatchOrder'));
+const OrderManagement = lazy(() => import('./OrderManagement'));
+const Analytics = lazy(() => import('./Analytics'));
+const ClubStats = lazy(() => import('./ClubStats'));
+const ClubHomeEditor = lazy(() => import('./ClubHomeEditor'));
+const ClubHomePage = lazy(() => import('./ClubHomePage'));
+const PhysicalTests = lazy(() => import('./PhysicalTests'));
+const CreatePhysicalTest = lazy(() => import('./CreatePhysicalTest'));
+const PhysicalTestRecord = lazy(() => import('./PhysicalTestRecord'));
+const PhysicalTestReport = lazy(() => import('./PhysicalTestReport'));
+const WeeklyReports = lazy(() => import('./WeeklyReports'));
+const MatchReports = lazy(() => import('./MatchReports'));
+const CoachDetail = lazy(() => import('./CoachDetail'));
+const PlayerSelection = lazy(() => import('./PlayerSelection'));
+const TrainingPlans = lazy(() => import('./TrainingPlans'));
+const MatchCalendar = lazy(() => import('./MatchCalendar'));
+const AdminOperationLogs = lazy(() => import('./AdminOperationLogs'));
+const ClubAnnouncements = lazy(() => import('./ClubAnnouncements'));
+const ClubActivities = lazy(() => import('./ClubActivities'));
 
 interface ClubInfo {
   id: string;
@@ -83,19 +80,51 @@ interface ApiPlayerItem {
   totalReports?: number;
 }
 
-const ClubDashboard: React.FC = () => {
-  const navigate = useNavigate();
-  const { user, clearAuth } = useAuthStore();
+const DashboardTabLoader = () => (
+  <div className="min-h-[360px] flex flex-col items-center justify-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02]">
+    <div className="w-9 h-9 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+    <p className="text-sm text-slate-400">加载中...</p>
+  </div>
+);
 
-  const handleLogout = () => {
-    clearAuth();
-    localStorage.removeItem('token');
-    localStorage.removeItem('currentUser');
-    navigate('/login');
-  };
+const FullPageTabLoader = () => (
+  <div className="min-h-screen bg-[#0f1419] flex items-center justify-center p-6">
+    <DashboardTabLoader />
+  </div>
+);
+
+const LazyTabBoundary = ({ children }: { children: ReactNode }) => (
+  <Suspense fallback={<DashboardTabLoader />}>{children}</Suspense>
+);
+
+const LazyFullPageBoundary = ({ children }: { children: ReactNode }) => (
+  <Suspense fallback={<FullPageTabLoader />}>{children}</Suspense>
+);
+
+const WeeklyReportProgress = ({ value }: { value: number }) => {
+  const clampedValue = Math.max(0, Math.min(Math.round(value), 100));
+  const color = clampedValue >= 80 ? '#10b981' : clampedValue >= 50 ? '#f59e0b' : '#ef4444';
+
+  return (
+    <div className="flex-1 min-w-[120px]">
+      <div className="flex items-baseline gap-1 mb-2">
+        <span className="text-3xl font-bold text-white tracking-tight">{clampedValue}</span>
+        <span className="text-sm font-semibold text-slate-400">%</span>
+      </div>
+      <div className="h-2.5 rounded-full bg-white/[0.06] overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${clampedValue}%`, backgroundColor: color }}
+        />
+      </div>
+    </div>
+  );
+};
+
+const ClubDashboard: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'teams' | 'team-detail' | 'players' | 'player-detail' | 'coaches' | 'coach-detail' | 'orders' | 'order-create' | 'order-management' | 'analytics' | 'stats' | 'home-editor' | 'home-preview' | 'physical-tests' | 'create-physical-test' | 'physical-test-record' | 'physical-test-report' | 'weekly-reports' | 'match-management' | 'player-selection' | 'training-plans' | 'match-calendar' | 'admin-logs' | 'announcements'>('overview');
+  const [, setSidebarOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'teams' | 'team-detail' | 'players' | 'player-detail' | 'coaches' | 'coach-detail' | 'orders' | 'order-create' | 'order-management' | 'analytics' | 'stats' | 'home-editor' | 'home-preview' | 'physical-tests' | 'create-physical-test' | 'physical-test-record' | 'physical-test-report' | 'weekly-reports' | 'match-management' | 'player-selection' | 'training-plans' | 'match-calendar' | 'activities' | 'admin-logs' | 'announcements'>('overview');
   const [currentTestId, setCurrentTestId] = useState<number | null>(null);
   const [currentPlayerId, setCurrentPlayerId] = useState<number | null>(null);
   const [currentTeamId, setCurrentTeamId] = useState<number | null>(null);
@@ -105,7 +134,7 @@ const ClubDashboard: React.FC = () => {
   const [clubInfo, setClubInfo] = useState<ClubInfo | null>(null);
   const [stats, setStats] = useState({ totalPlayers: 0, activeOrders: 0, completedReports: 0, monthlySpending: 0 });
   const [recentPlayers, setRecentPlayers] = useState<Player[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [, setNotifications] = useState<Notification[]>([]);
   const [insights, setInsights] = useState({
     weeklyReportSubmitRate: 0,
     weeklyReportTotal: 0,
@@ -165,7 +194,7 @@ const ClubDashboard: React.FC = () => {
           totalPlayers: overview.totalPlayers || 0,
           activeOrders: overview.pendingOrders || 0,
           completedReports: overview.completedOrders || 0,
-          monthlySpending: 0
+          monthlySpending: Number(overview.monthlySpending || 0)
         });
 
         const ins = overview.insights || {};
@@ -230,6 +259,9 @@ const ClubDashboard: React.FC = () => {
     themeColor: '#10b981',
     dashboardPath: '/club/dashboard',
     profilePath: clubInfo?.id ? `/clubs/${clubInfo.id}` : undefined,
+    profileSubItems: [
+      { id: 'club-profile-edit', label: '编辑资料', icon: Edit3, path: '/club/profile' },
+    ],
     showCreatePost: true,
     businessGroups: [
       {
@@ -263,6 +295,7 @@ const ClubDashboard: React.FC = () => {
         items: [
           { id: 'training-plans', label: '训练计划', icon: Activity },
           { id: 'match-calendar', label: '赛程日历', icon: Calendar },
+          { id: 'activities', label: '活动管理', icon: Calendar },
           { id: 'home-editor', label: '主页编辑', icon: Globe },
           { id: 'announcements', label: '公告管理', icon: Bell },
           ...(isAdmin ? [{ id: 'admin-logs', label: '操作日志', icon: FileText }] : []),
@@ -275,7 +308,7 @@ const ClubDashboard: React.FC = () => {
   const getActiveGroupKey = (): string | undefined => {
     if (['teams', 'match-management', 'weekly-reports', 'players', 'coaches', 'coach-detail', 'player-selection'].includes(activeTab)) return 'teams';
     if (['orders', 'order-management', 'analytics', 'stats'].includes(activeTab)) return 'orders';
-    if (['training-plans', 'match-calendar', 'home-editor', 'announcements', 'admin-logs'].includes(activeTab)) return 'ops';
+    if (['training-plans', 'match-calendar', 'activities', 'home-editor', 'announcements', 'admin-logs'].includes(activeTab)) return 'ops';
     return undefined;
   };
 
@@ -305,6 +338,7 @@ const ClubDashboard: React.FC = () => {
       'player-selection': '选材决策',
       'training-plans': '训练计划',
       'match-calendar': '赛程日历',
+      activities: '活动管理',
       'admin-logs': '操作日志',
       announcements: '公告管理',
 
@@ -313,10 +347,34 @@ const ClubDashboard: React.FC = () => {
   };
 
   // 提前返回的子页面（不使用 DashboardLayout）
-  if (activeTab === 'team-detail') return <TeamDetail teamId={currentTeamId || 0} onBack={() => handleTabChange('teams')} isAdmin={isAdmin} onViewDetail={(id) => { setCurrentPlayerId(id); setPlayerDetailBackTab('team-detail'); handleTabChange('player-detail'); }} />;
-  if (activeTab === 'player-detail') return <PlayerDetail playerId={currentPlayerId || 0} onBack={() => handleTabChange(playerDetailBackTab)} />;
-  if (activeTab === 'coach-detail') return <CoachDetail coachId={currentCoachId || 0} onBack={() => handleTabChange('coaches')} isAdmin={isAdmin} />;
-  if (activeTab === 'order-create') return <BatchOrder onBack={() => handleTabChange('orders')} />;
+  if (activeTab === 'team-detail') {
+    return (
+      <LazyFullPageBoundary>
+        <TeamDetail teamId={currentTeamId || 0} onBack={() => handleTabChange('teams')} isAdmin={isAdmin} onViewDetail={(id) => { setCurrentPlayerId(id); setPlayerDetailBackTab('team-detail'); handleTabChange('player-detail'); }} />
+      </LazyFullPageBoundary>
+    );
+  }
+  if (activeTab === 'player-detail') {
+    return (
+      <LazyFullPageBoundary>
+        <PlayerDetail playerId={currentPlayerId || 0} onBack={() => handleTabChange(playerDetailBackTab)} />
+      </LazyFullPageBoundary>
+    );
+  }
+  if (activeTab === 'coach-detail') {
+    return (
+      <LazyFullPageBoundary>
+        <CoachDetail coachId={currentCoachId || 0} onBack={() => handleTabChange('coaches')} isAdmin={isAdmin} />
+      </LazyFullPageBoundary>
+    );
+  }
+  if (activeTab === 'order-create') {
+    return (
+      <LazyFullPageBoundary>
+        <BatchOrder onBack={() => handleTabChange('orders')} />
+      </LazyFullPageBoundary>
+    );
+  }
   if (activeTab === 'home-preview') {
     if (!clubInfo) {
       return (
@@ -328,11 +386,33 @@ const ClubDashboard: React.FC = () => {
         </div>
       );
     }
-    return <ClubHomePage clubId={Number(clubInfo.id) || 0} onBack={() => handleTabChange('home-editor')} />;
+    return (
+      <LazyFullPageBoundary>
+        <ClubHomePage clubId={Number(clubInfo.id) || 0} onBack={() => handleTabChange('home-editor')} />
+      </LazyFullPageBoundary>
+    );
   }
-  if (activeTab === 'create-physical-test') return <CreatePhysicalTest onBack={() => handleTabChange('physical-tests')} onSuccess={() => handleTabChange('physical-tests')} />;
-  if (activeTab === 'physical-test-record') return <PhysicalTestRecord testId={currentTestId} onBack={() => handleTabChange('physical-tests')} />;
-  if (activeTab === 'physical-test-report') return <PhysicalTestReport testId={currentTestId} onBack={() => handleTabChange('physical-tests')} />;
+  if (activeTab === 'create-physical-test') {
+    return (
+      <LazyFullPageBoundary>
+        <CreatePhysicalTest onBack={() => handleTabChange('physical-tests')} onSuccess={() => handleTabChange('physical-tests')} />
+      </LazyFullPageBoundary>
+    );
+  }
+  if (activeTab === 'physical-test-record') {
+    return (
+      <LazyFullPageBoundary>
+        <PhysicalTestRecord testId={currentTestId} onBack={() => handleTabChange('physical-tests')} />
+      </LazyFullPageBoundary>
+    );
+  }
+  if (activeTab === 'physical-test-report') {
+    return (
+      <LazyFullPageBoundary>
+        <PhysicalTestReport testId={currentTestId} onBack={() => handleTabChange('physical-tests')} />
+      </LazyFullPageBoundary>
+    );
+  }
 
   // 渲染主内容区域
   const renderMainContent = () => {
@@ -378,6 +458,8 @@ const ClubDashboard: React.FC = () => {
         return <TrainingPlans onBack={() => handleTabChange('overview')} />;
       case 'match-calendar':
         return <MatchCalendar onBack={() => handleTabChange('overview')} />;
+      case 'activities':
+        return <ClubActivities clubId={Number(clubInfo?.id) || 0} onBack={() => handleTabChange('overview')} />;
       case 'announcements':
         return <ClubAnnouncements onBack={() => handleTabChange('overview')} />;
       case 'admin-logs':
@@ -478,10 +560,10 @@ const ClubDashboard: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-6 sm:mb-8">
-            <StatCard icon={Users} label="在籍球员" value={stats.totalPlayers} trend="+5 本月新增" color="blue" />
-            <StatCard icon={FileText} label="进行中订单" value={stats.activeOrders} trend="3 待分配" color="amber" />
-            <StatCard icon={CheckCircle} label="已完成报告" value={stats.completedReports} trend="+12 本月" color="emerald" />
-            <StatCard icon={CreditCard} label="本月支出" value={`¥${stats.monthlySpending.toLocaleString()}`} trend="预算内" color="violet" />
+            <StatCard icon={Users} label="在籍球员" value={stats.totalPlayers} color="blue" />
+            <StatCard icon={FileText} label="待支付订单" value={stats.activeOrders} color="amber" />
+            <StatCard icon={CheckCircle} label="已完成报告" value={stats.completedReports} color="emerald" />
+            <StatCard icon={CreditCard} label="本月支出" value={`¥${stats.monthlySpending.toLocaleString()}`} color="violet" />
           </div>
         )}
 
@@ -530,38 +612,7 @@ const ClubDashboard: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="flex-1" style={{ height: 80 }}>
-                    <ReactECharts
-                      option={{
-                        series: [{
-                          type: 'gauge',
-                          startAngle: 180,
-                          endAngle: 0,
-                          min: 0,
-                          max: 100,
-                          radius: '110%',
-                          center: ['50%', '70%'],
-                          itemStyle: { color: insights.weeklyReportSubmitRate >= 80 ? '#10b981' : insights.weeklyReportSubmitRate >= 50 ? '#f59e0b' : '#ef4444' },
-                          progress: { show: true, width: 10, roundCap: true },
-                          pointer: { show: false },
-                          axisLine: { lineStyle: { width: 10, color: [[1, 'rgba(255,255,255,0.06)']] } },
-                          axisTick: { show: false },
-                          splitLine: { show: false },
-                          axisLabel: { show: false },
-                          detail: {
-                            valueAnimation: true,
-                            fontSize: 22,
-                            fontWeight: 'bold',
-                            color: '#fff',
-                            offsetCenter: [0, '-10%'],
-                            formatter: '{value}%',
-                          },
-                          data: [{ value: Math.round(insights.weeklyReportSubmitRate) }],
-                        }],
-                      }}
-                      style={{ height: '100%', width: '100%' }}
-                    />
-                  </div>
+                  <WeeklyReportProgress value={insights.weeklyReportSubmitRate} />
                   <div className="text-right">
                     <div className="text-2xl font-bold text-white tracking-tight">{insights.weeklyReportSubmitted}</div>
                     <div className="text-xs text-slate-500">/ {insights.weeklyReportTotal} 已提交</div>
@@ -648,7 +699,7 @@ const ClubDashboard: React.FC = () => {
           </div>
         </div>
       </>) : (
-        renderMainContent()
+        <LazyTabBoundary>{renderMainContent()}</LazyTabBoundary>
       )}
 
       <CreatePostModal
@@ -706,7 +757,9 @@ const StatCard = ({ icon: Icon, label, value, trend, color }: StatCardProps) => 
         <div className={`p-2.5 ${c.iconBg} rounded-xl border border-white/[0.06]`}>
           <Icon className={`w-5 h-5 ${c.iconText}`} />
         </div>
-        <span className="text-[11px] font-medium text-slate-500 bg-white/[0.03] px-2 py-1 rounded-full border border-white/[0.06]">{trend}</span>
+        {trend && (
+          <span className="text-[11px] font-medium text-slate-500 bg-white/[0.03] px-2 py-1 rounded-full border border-white/[0.06]">{trend}</span>
+        )}
       </div>
       <div className="text-3xl font-bold text-white tracking-tight mb-1">{value}</div>
       <div className="text-sm text-slate-400">{label}</div>

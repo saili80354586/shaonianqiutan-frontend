@@ -19,7 +19,7 @@ interface FootballProfileFormData {
 
 interface FootballProfileFormProps {
   isEditing: boolean;
-  formData: FootballProfileData;
+  formData: FootballProfileFormData;
   onChange: (field: string, value: any) => void;
 }
 

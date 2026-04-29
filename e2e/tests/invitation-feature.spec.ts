@@ -21,6 +21,7 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
+import { apiUrl } from '../config';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 公共辅助函数
@@ -418,13 +419,13 @@ test.describe('模块7 - 权限控制', () => {
 
   test('7.1 未登录用户访问发现俱乐部 API → 公开接口可访问', async ({ page }) => {
     // 直接访问公开搜索 API（注意：后端路由不带 /api 前缀）
-    const response = await page.request.get('http://localhost:8080/clubs/search?page=1&pageSize=10');
+    const response = await page.request.get(apiUrl('/clubs/search?page=1&pageSize=10'));
     // 公开接口应该返回 200（即使数据为空）或 404（若路由不存在）
     expect([200, 404]).toContain(response.status());
   });
 
   test('7.2 未登录用户访问我的邀请 API → 返回 401 或 404', async ({ page }) => {
-    const response = await page.request.get('http://localhost:8080/invitations/my');
+    const response = await page.request.get(apiUrl('/invitations/my'));
     // 需要认证的接口返回 401；若路由未注册则返回 404
     expect([401, 404]).toContain(response.status());
   });
@@ -432,7 +433,7 @@ test.describe('模块7 - 权限控制', () => {
   test('7.3 球员账号无法访问俱乐部球队申请列表 → 返回 403 或 401 或 404', async ({ page }) => {
     await loginAsPlayer(page);
     // 尝试访问俱乐部专属 API
-    const response = await page.request.get('http://localhost:8080/teams/1/applications');
+    const response = await page.request.get(apiUrl('/teams/1/applications'));
     expect([401, 403, 404]).toContain(response.status());
   });
 });

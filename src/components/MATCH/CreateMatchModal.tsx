@@ -5,7 +5,7 @@ import {
   Video, Trash2, Plus
 } from 'lucide-react';
 import { matchApi, type MatchFormat, type MatchLocation, type MatchVideoItem } from '@/services/matchApi';
-import { clubApi } from '@/services/club';
+import { coachApi } from '@/services/club';
 
 // ============================================================
 // 类型定义
@@ -111,7 +111,7 @@ export const CreateMatchModal: React.FC<CreateMatchModalProps> = ({
   const loadTeams = async () => {
     setLoadingTeams(true);
     try {
-      const response = await clubApi.getMyTeams();
+      const response = await coachApi.getMyTeams();
       if (response.data.success) {
         const data = (response.data.data as any[]) || [];
         setTeams(data.map((t: any) => ({
@@ -138,7 +138,7 @@ export const CreateMatchModal: React.FC<CreateMatchModalProps> = ({
 
     setLoadingPlayers(true);
     try {
-      const response = await clubApi.getTeamPlayers(teamId);
+      const response = await coachApi.getTeamPlayers(teamId);
       if (response.data.success) {
         const data = (response.data.data as any[]) || [];
         setPlayers(data.map((p: any) => ({

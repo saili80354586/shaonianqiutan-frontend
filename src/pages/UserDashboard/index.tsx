@@ -24,6 +24,7 @@ import { MyWeeklyReports } from './components/MyWeeklyReports';
 import { MyMatchReports } from './components/MyMatchReports';
 import { DiscoverClubs } from './components/DiscoverClubs';
 import { MyApplications } from './components/MyApplications';
+import { MyActivityRegistrations } from './components/MyActivityRegistrations';
 import { MyFavorites } from './components/MyFavorites';
 import MyInvitations from './MyInvitations';
 
@@ -36,9 +37,33 @@ type DashboardTab =
   | 'weekly_reports'
   | 'match_reports'
   | 'discover_clubs'
+  | 'my_activity_registrations'
   | 'my_applications'
   | 'my_invitations'
   | 'favorites';
+
+const dashboardTabs: DashboardTab[] = [
+  'home',
+  'orders',
+  'profile',
+  'growth',
+  'weekly_reports',
+  'match_reports',
+  'discover_clubs',
+  'my_activity_registrations',
+  'my_applications',
+  'my_invitations',
+  'favorites',
+];
+
+const isDashboardTab = (value: string | null): value is DashboardTab =>
+  Boolean(value && dashboardTabs.includes(value as DashboardTab));
+
+const getInitialTab = (): DashboardTab => {
+  if (typeof window === 'undefined') return 'home';
+  const tab = new URLSearchParams(window.location.search).get('tab');
+  return isDashboardTab(tab) ? tab : 'home';
+};
 
 // 模块标题映射
 const tabTitles: Record<DashboardTab, string> = {
@@ -49,6 +74,7 @@ const tabTitles: Record<DashboardTab, string> = {
   weekly_reports: '我的周报',
   match_reports: '我的比赛',
   discover_clubs: '发现俱乐部',
+  my_activity_registrations: '我的报名',
   my_applications: '我的申请',
   my_invitations: '我的邀请',
   favorites: '我的收藏',
@@ -85,6 +111,7 @@ const playerSidebarConfig: SidebarConfig = {
       items: [
         { id: 'growth', label: '成长中心', icon: BarChart3 },
         { id: 'discover_clubs', label: '发现俱乐部', icon: Building2 },
+        { id: 'my_activity_registrations', label: '我的报名', icon: Calendar },
         { id: 'my_applications', label: '我的申请', icon: ClipboardList },
         { id: 'my_invitations', label: '我的邀请', icon: Mail },
         { id: 'favorites', label: '我的收藏', icon: Heart },
@@ -95,7 +122,7 @@ const playerSidebarConfig: SidebarConfig = {
 
 // Main Dashboard Component
 export const UserDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<DashboardTab>('home');
+  const [activeTab, setActiveTab] = useState<DashboardTab>(() => getInitialTab());
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const { user } = useAuthStore();
   const sidebarConfig: SidebarConfig = {
@@ -110,14 +137,26 @@ export const UserDashboard: React.FC = () => {
   const getActiveGroupKey = (): string => {
     if (['orders'].includes(activeTab)) return 'business';
     if (['weekly_reports', 'match_reports'].includes(activeTab)) return 'training';
-    if (['growth', 'discover_clubs', 'my_applications', 'my_invitations', 'favorites'].includes(activeTab)) return 'growth';
+    if (['growth', 'discover_clubs', 'my_activity_registrations', 'my_applications', 'my_invitations', 'favorites'].includes(activeTab)) return 'growth';
     return '';
+  };
+
+  const activateTab = (tab: DashboardTab) => {
+    setActiveTab(tab);
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (tab === 'home') {
+      url.searchParams.delete('tab');
+    } else {
+      url.searchParams.set('tab', tab);
+    }
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
   };
 
   const renderContent = () => {
     switch (activeTab) {
       case 'home':
-        return <HomeModule onTabChange={setActiveTab} />;
+        return <HomeModule onTabChange={(tab) => activateTab(tab as DashboardTab)} />;
       case 'orders':
         return <OrderCenter />;
       case 'profile':
@@ -130,6 +169,8 @@ export const UserDashboard: React.FC = () => {
         return <MyMatchReports />;
       case 'discover_clubs':
         return <DiscoverClubs />;
+      case 'my_activity_registrations':
+        return <MyActivityRegistrations />;
       case 'my_applications':
         return <MyApplications />;
       case 'my_invitations':
@@ -137,7 +178,7 @@ export const UserDashboard: React.FC = () => {
       case 'favorites':
         return <MyFavorites />;
       default:
-        return <HomeModule onTabChange={setActiveTab} />;
+        return <HomeModule onTabChange={(tab) => activateTab(tab as DashboardTab)} />;
     }
   };
 
@@ -150,8 +191,9 @@ export const UserDashboard: React.FC = () => {
         pageTitle={activeTab === 'home' ? undefined : tabTitles[activeTab]}
         onCreatePost={() => setIsCreateOpen(true)}
         onItemClick={(item) => {
-          if (item.id) {
-            setActiveTab(item.id as DashboardTab);
+          const nextTab = item.id || null;
+          if (isDashboardTab(nextTab)) {
+            activateTab(nextTab);
           }
         }}
       >

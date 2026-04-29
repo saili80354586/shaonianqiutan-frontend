@@ -2,15 +2,16 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   ArrowLeft, Calendar, Phone, Award, FileText, TrendingUp, Edit2,
   ShoppingBag, BarChart3, Shield, CheckCircle, Clock, XCircle,
-  Activity, User, Filter, ChevronDown, ChevronUp, Zap, MapPin,
+  Activity, User, Filter, ChevronDown, ChevronUp, Download,
   Video, Target, Star, Package
 } from 'lucide-react';
-import ReactECharts from 'echarts-for-react';
-import { clubApi } from '../../services/api';
+import { useNavigate, useParams } from 'react-router-dom';
+import ReactECharts from '../../components/charts/ReactECharts';
+import { clubApi, reportApi } from '../../services/api';
 
 interface PlayerDetailProps {
-  playerId: number;
-  onBack: () => void;
+  playerId?: number;
+  onBack?: () => void;
 }
 
 // ===== 新 Tab 体系 =====
@@ -31,12 +32,23 @@ interface TimelineNode {
 // ===== 原有接口保留 =====
 interface PhysicalTestItem {
   id: number;
+  activityID?: number;
   testDate: string;
   data: Record<string, string | number>;
 }
 
-interface GrowthRecord {
+interface PhysicalReportItem {
   id: number;
+  activityId: number;
+  activityName: string;
+  testDate: string;
+  overallRating: string;
+  percentile: number;
+  hasPdf?: boolean;
+}
+
+interface GrowthRecord {
+  id?: number;
   date: string;
   type: string;
   title: string;
@@ -114,6 +126,7 @@ interface PlayerProfile {
   weeklyReports: WeeklyReportItem[];
   matchSummaries: MatchSummaryItem[];
   physicalTests: PhysicalTestItem[];
+  physicalReports?: PhysicalReportItem[];
   orders: OrderItem[];
   scoutReports: ScoutReportItem[];
 }
@@ -222,9 +235,9 @@ const buildTimeline = (player: PlayerProfile): TimelineNode[] => {
     });
   });
 
-  player.growthRecords?.forEach((gr) => {
+  player.growthRecords?.forEach((gr, index) => {
     nodes.push({
-      id: `gr-${gr.id}`,
+      id: `gr-${gr.id ?? `${gr.type}-${gr.date}-${index}`}`,
       type: 'growth',
       date: gr.date,
       title: gr.title,
@@ -234,15 +247,6 @@ const buildTimeline = (player: PlayerProfile): TimelineNode[] => {
   });
 
   return nodes.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-};
-
-// ===== 体测趋势计算 =====
-const getPhysicalTrend = (tests: PhysicalTestItem[], metric: string) => {
-  const sorted = [...tests].sort((a, b) => new Date(a.testDate).getTime() - new Date(b.testDate).getTime());
-  return sorted.map((t) => ({
-    date: t.testDate,
-    value: typeof t.data[metric] === 'number' ? t.data[metric] : parseFloat(t.data[metric] as string) || 0,
-  }));
 };
 
 // ===== 统计卡片组件 =====
@@ -258,6 +262,11 @@ const StatCard: React.FC<{ label: string; value: string | number; color: string;
   );
 
 const PlayerDetail: React.FC<PlayerDetailProps> = ({ playerId, onBack }) => {
+  const navigate = useNavigate();
+  const params = useParams();
+  const routePlayerId = Number(params.id);
+  const resolvedPlayerId = playerId ?? (Number.isFinite(routePlayerId) && routePlayerId > 0 ? routePlayerId : 0);
+  const handleBack = onBack || (() => navigate('/club/dashboard'));
   const [player, setPlayer] = useState<PlayerProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>('timeline');
@@ -265,12 +274,17 @@ const PlayerDetail: React.FC<PlayerDetailProps> = ({ playerId, onBack }) => {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [selectedMetric, setSelectedMetric] = useState<string>('');
 
-  useEffect(() => { loadPlayer(); }, [playerId]);
+  useEffect(() => { loadPlayer(); }, [resolvedPlayerId]);
 
   const loadPlayer = async () => {
+    if (!resolvedPlayerId) {
+      setPlayer(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const res = await clubApi.getPlayerDetail(playerId);
+      const res = await clubApi.getPlayerDetail(resolvedPlayerId);
       if (res.data?.success && res.data?.data) {
         setPlayer(res.data.data);
       }
@@ -295,6 +309,15 @@ const PlayerDetail: React.FC<PlayerDetailProps> = ({ playerId, onBack }) => {
     });
   };
 
+  const handleDownloadPhysicalReport = async (report: PhysicalReportItem) => {
+    try {
+      await reportApi.downloadPhysicalReport(report.id, `${player?.name || '球员'}_${report.activityName || '体测报告'}.html`);
+    } catch (error) {
+      console.error('下载体测报告失败:', error);
+      alert('下载体测报告失败，请稍后重试');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0f1419] flex items-center justify-center">
@@ -306,7 +329,7 @@ const PlayerDetail: React.FC<PlayerDetailProps> = ({ playerId, onBack }) => {
   if (!player) {
     return (
       <div className="min-h-screen bg-[#0f1419] p-8">
-        <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white">
+        <button onClick={handleBack} className="flex items-center gap-2 text-gray-400 hover:text-white">
           <ArrowLeft className="w-5 h-5" />返回
         </button>
         <div className="text-center text-gray-400 mt-8">球员不存在或暂无数据</div>
@@ -324,7 +347,7 @@ const PlayerDetail: React.FC<PlayerDetailProps> = ({ playerId, onBack }) => {
   return (
     <div className="min-h-screen bg-[#0f1419]">
       <div className="p-8">
-        <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white mb-6">
+        <button onClick={handleBack} className="flex items-center gap-2 text-gray-400 hover:text-white mb-6">
           <ArrowLeft className="w-5 h-5" />返回球员管理
         </button>
 
@@ -578,6 +601,41 @@ const PlayerDetail: React.FC<PlayerDetailProps> = ({ playerId, onBack }) => {
                     <EmptyState message="暂无体测数据" />
                   )}
                 </div>
+
+                <div>
+                  <h3 className="text-white font-semibold flex items-center gap-2 mb-4">
+                    <FileText className="w-5 h-5 text-cyan-400" />体测报告
+                  </h3>
+                  {player.physicalReports && player.physicalReports.length > 0 ? (
+                    <div className="space-y-3">
+                      {player.physicalReports.map((report) => (
+                        <div key={report.id} className="bg-[#0f1419] rounded-xl border border-gray-800 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                          <div>
+                            <div className="font-medium text-white">{report.activityName || '体测报告'}</div>
+                            <div className="text-sm text-gray-400 mt-1">{report.testDate || '-'} · {report.overallRating || '暂无评级'} · 百分位 {report.percentile || '-'}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => navigate(`/club/physical-reports/${report.id}`)}
+                              className="flex items-center gap-2 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm transition-colors"
+                            >
+                              <FileText className="w-4 h-4" />查看报告
+                            </button>
+                            <button
+                              onClick={() => handleDownloadPhysicalReport(report)}
+                              className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors"
+                            >
+                              <Download className="w-4 h-4" />导出
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState message="暂无体测报告" />
+                  )}
+                </div>
+
                 {/* 指标趋势折线图 */}
                 {player.physicalTests && player.physicalTests.length >= 2 && (
                   <div className="bg-[#0f1419] rounded-xl border border-gray-800 p-4">

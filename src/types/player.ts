@@ -50,6 +50,7 @@ export interface ExperienceItem {
 // 球员完整资料响应
 export interface PlayerProfileResponse {
   id: number;
+  phone?: string;
   nickname: string;
   realName: string;
   birthDate: string;
@@ -84,7 +85,9 @@ export interface PlayerProfileResponse {
   mentalTags: string[];
   experiences: ExperienceItem[];
   latestPhysicalTest?: PhysicalTestInfo;
+  latest_physical_test?: PhysicalTestInfo;
   profileCompleteness: number;  // 0-100
+  profile_completeness?: number;  // 0-100，兼容旧接口
 }
 
 // 最新体测信息

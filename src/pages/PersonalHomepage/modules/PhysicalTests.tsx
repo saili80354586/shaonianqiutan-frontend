@@ -23,6 +23,8 @@ interface PhysicalTestData {
   testDate?: string;
 }
 
+type PhysicalMetricKey = Exclude<keyof PhysicalTestData, 'testDate'>;
+
 /** 后端返回的单条记录（含来源字段） */
 export interface TestRecordWithSource {
   id: number;
@@ -85,7 +87,7 @@ interface PhysicalTestsProps {
 }
 
 // 同龄人均值参考数据
-const peerAverages: Record<string, Record<string, { avg: number; good: number; excellent: number }>> = {
+const peerAverages: Record<string, Partial<Record<PhysicalMetricKey, { avg: number; good: number; excellent: number }>>> = {
   'U12': {
     sprint30m: { avg: 5.5, good: 5.0, excellent: 4.6 },
     sprint50m: { avg: 8.5, good: 7.8, excellent: 7.2 },
@@ -124,7 +126,14 @@ const peerAverages: Record<string, Record<string, { avg: number; good: number; e
   },
 };
 
-const testItems = [
+const testItems: Array<{
+  key: PhysicalMetricKey;
+  label: string;
+  unit: string;
+  icon: React.ComponentType<{ className?: string }>;
+  lowerIsBetter: boolean;
+  apiKey: string;
+}> = [
   { key: 'sprint30m', label: '30米跑', unit: '秒', icon: Zap, lowerIsBetter: true, apiKey: 'sprint_30m' as const },
   { key: 'standingLongJump', label: '立定跳远', unit: 'cm', icon: MoveRight, lowerIsBetter: false, apiKey: 'standing_long_jump' as const },
   { key: 'sitAndReach', label: '坐位体前屈', unit: 'cm', icon: StretchHorizontal, lowerIsBetter: false, apiKey: 'sit_and_reach' as const },
@@ -181,7 +190,7 @@ const PhysicalRadarChart: React.FC<{ data: PhysicalTestData; ageGroup: string; t
     ctx.clearRect(0, 0, size, size);
 
     const values = testItems.map(item => {
-      const value = data[item.key as keyof PhysicalTestData];
+      const value = data[item.key];
       if (value === undefined || value === null) return 50;
       const averages = peerAverages[ageGroup]?.[item.key];
       if (!averages) return 50;
@@ -322,9 +331,10 @@ const PhysicalTests: React.FC<PhysicalTestsProps> = ({ data, age, gender, theme,
   let totalScore = 0;
   let count = 0;
   testItems.forEach(item => {
-    const value = displayData[item.key as keyof PhysicalTestData];
-    if (value !== undefined && value !== null && averages?.[item.key]) {
-      totalScore += calculatePercentile(value, averages[item.key], item.lowerIsBetter);
+    const value = displayData[item.key];
+    const average = averages?.[item.key];
+    if (value !== undefined && value !== null && average) {
+      totalScore += calculatePercentile(value, average, item.lowerIsBetter);
       count++;
     }
   });
@@ -470,7 +480,7 @@ const PhysicalTests: React.FC<PhysicalTestsProps> = ({ data, age, gender, theme,
           {/* 详细数据卡片 */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {testItems.map(item => {
-              const value = displayData[item.key as keyof PhysicalTestData];
+              const value = displayData[item.key];
               const avg = averages?.[item.key];
               const Icon = item.icon;
 

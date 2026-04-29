@@ -95,7 +95,7 @@ const MatchCalendar: React.FC<MatchCalendarProps> = ({ onBack }) => {
   const loadSchedules = async () => {
     setLoading(true);
     try {
-      const params: { month: string } = { month: currentMonth };
+      const params: { month: string; teamId?: number } = { month: currentMonth };
       if (teamFilter) params.teamId = teamFilter;
       const res = await clubApi.getMatchSchedules(params);
       if (res.data?.success && Array.isArray(res.data.data)) {

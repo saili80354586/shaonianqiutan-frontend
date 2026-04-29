@@ -42,7 +42,7 @@ export interface RoleTheme {
   };
 }
 
-export const roleThemes: Record<UserRole, RoleTheme> = {
+export const roleThemes: Record<string, RoleTheme> = {
   player: {
     id: 'player',
     name: '球员',

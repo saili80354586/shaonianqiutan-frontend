@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Search, Check, FileText, Video, ShoppingCart, Trash2, ChevronRight, Tag, Info, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, Search, Check, FileText, Video, ShoppingCart, Trash2, Tag, type LucideIcon } from 'lucide-react';
+import { toast } from 'sonner';
 import { CardGridSkeleton } from '../../components/ui/loading';
-import { clubApi } from '../../services/club';
+import { clubApi, orderApi } from '../../services/club';
 
 interface Player {
   id: string;
@@ -21,6 +22,7 @@ interface CartItem {
 interface BatchOrdersProps {
   onBack: () => void;
   clubId?: number;
+  onCreateNew?: () => void;
 }
 
 const BatchOrders: React.FC<BatchOrdersProps> = ({ onBack }) => {
@@ -30,6 +32,7 @@ const BatchOrders: React.FC<BatchOrdersProps> = ({ onBack }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     loadPlayers();
@@ -42,7 +45,7 @@ const BatchOrders: React.FC<BatchOrdersProps> = ({ onBack }) => {
       if (response.data?.success) {
         const list = response.data.data?.list || [];
         setPlayers(list.map((p: any) => ({
-          id: String(p.id),
+          id: String(p.userId || p.id),
           name: p.name || '未知球员',
           age: p.age || (p.birthDate ? new Date().getFullYear() - new Date(p.birthDate).getFullYear() : 0),
           position: p.position || p.positionName || '未知',
@@ -80,7 +83,7 @@ const BatchOrders: React.FC<BatchOrdersProps> = ({ onBack }) => {
           playerId: player.id,
           playerName: player.name,
           type,
-          price: type === 'video' ? 299 : 99
+          price: type === 'video' ? 499 : 99
         });
       }
     });
@@ -111,6 +114,40 @@ const BatchOrders: React.FC<BatchOrdersProps> = ({ onBack }) => {
   const getOriginalTotalPrice = () => cart.reduce((sum, item) => sum + item.price, 0);
   const getTotalPrice = () => Math.round(getOriginalTotalPrice() * getDiscountRate());
   const getSavedAmount = () => getOriginalTotalPrice() - getTotalPrice();
+
+  const handleSubmit = async () => {
+    if (cart.length === 0 || submitting) return;
+
+    const grouped = cart.reduce<Record<CartItem['type'], number[]>>((acc, item) => {
+      acc[item.type].push(Number(item.playerId));
+      return acc;
+    }, { text: [], video: [] });
+
+    setSubmitting(true);
+    try {
+      const requests: Array<ReturnType<typeof orderApi.createBatchOrders>> = [];
+      if (grouped.text.length > 0) {
+        requests.push(orderApi.createBatchOrders({ playerIds: grouped.text, serviceType: 'quick_report', remark: '俱乐部批量下单' }));
+      }
+      if (grouped.video.length > 0) {
+        requests.push(orderApi.createBatchOrders({ playerIds: grouped.video, serviceType: 'video_analysis', remark: '俱乐部批量下单' }));
+      }
+
+      const results = await Promise.all(requests);
+      const failed = results.some((res) => !res?.data?.success);
+      if (failed) {
+        toast.error('部分订单创建失败，请刷新后重试');
+        return;
+      }
+
+      toast.success('订单创建成功');
+      onBack();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error?.message || '订单创建失败，请重试');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const getPositionColor = (pos: string) => {
     const map: Record<string, string> = {
@@ -226,7 +263,7 @@ const BatchOrders: React.FC<BatchOrdersProps> = ({ onBack }) => {
                     <ServiceCard 
                       icon={Video} 
                       title="视频版报告" 
-                      price={299} 
+                      price={499}
                       features={['高清视频讲解', '逐帧技术分析', '动态对比', '7-10天交付']}
                       onSelect={() => { addToCart('video'); setStep(3); }}
                       color="purple"
@@ -297,9 +334,13 @@ const BatchOrders: React.FC<BatchOrdersProps> = ({ onBack }) => {
                   <button onClick={() => setStep(2)} className="flex-1 py-3 border border-gray-700 text-gray-400 hover:text-white rounded-xl transition-colors">
                     返回修改
                   </button>
-                  <button className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-medium transition-colors">
-                    确认支付 ¥{getTotalPrice()}
-                  </button>
+	                  <button
+	                    onClick={handleSubmit}
+	                    disabled={cart.length === 0 || submitting}
+	                    className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
+	                  >
+	                    {submitting ? '提交中...' : `确认下单 ¥${getTotalPrice()}`}
+	                  </button>
                 </div>
               </div>
             )}

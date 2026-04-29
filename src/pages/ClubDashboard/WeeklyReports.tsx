@@ -5,7 +5,7 @@ import {
   ThumbsUp, AlertCircle, Bell, Shield, Download, Filter
 } from 'lucide-react';
 import { toast } from 'sonner';
-import ReactECharts from 'echarts-for-react';
+import ReactECharts from '../../components/charts/ReactECharts';
 import { teamApi } from '../../services/club';
 import { weeklyReportApi } from '../../services/api';
 import WeeklyReportDetail from './components/WeeklyReportDetail';

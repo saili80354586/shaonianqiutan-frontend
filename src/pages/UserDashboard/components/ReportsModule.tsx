@@ -179,15 +179,18 @@ export const ReportsModule: React.FC = () => {
     const reportDate = new Date(report.createdAt);
 
     switch (timeFilter) {
-      case 'week':
+      case 'week': {
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         return reportDate >= weekAgo;
-      case 'month':
+      }
+      case 'month': {
         const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
         return reportDate >= monthAgo;
-      case 'threemonths':
+      }
+      case 'threemonths': {
         const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
         return reportDate >= threeMonthsAgo;
+      }
       default:
         return true;
     }

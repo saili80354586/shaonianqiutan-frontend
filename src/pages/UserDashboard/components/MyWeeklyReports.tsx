@@ -59,6 +59,7 @@ interface WeeklyReport {
 
   // 教练评语
   reviewComment?: string;
+  reviewRating?: number;
   strengthsAcknowledgment?: string;
   suggestions?: string;
   knowledgeFeedback?: string;
@@ -78,7 +79,7 @@ interface MyWeeklyReportsProps {
 
 export const MyWeeklyReports: React.FC<MyWeeklyReportsProps> = ({ onBack }) => {
   const { user } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'submitted' | 'reviewed' | 'rejected'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'submitted' | 'reviewed' | 'approved' | 'rejected'>('all');
   const [reports, setReports] = useState<WeeklyReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -182,12 +183,12 @@ export const MyWeeklyReports: React.FC<MyWeeklyReportsProps> = ({ onBack }) => {
   // 计算平均分
   const getSelfAvg = (report: WeeklyReport) => {
     if (report.selfAttitudeRating === 0) return '-';
-    return ((report.selfAttitudeRating + report.selfTechniqueRating + report.selfTeamworkRating) / 3).toFixed(1);
+    return (((report.selfAttitudeRating ?? 0) + (report.selfTechniqueRating ?? 0) + (report.selfTeamworkRating ?? 0)) / 3).toFixed(1);
   };
 
   const getCoachAvg = (report: WeeklyReport) => {
     if (!report.coachAttitudeRating) return '-';
-    return ((report.coachAttitudeRating + report.coachTechniqueRating + report.coachTacticsRating + report.coachKnowledgeRating) / 4).toFixed(1);
+    return (((report.coachAttitudeRating ?? 0) + (report.coachTechniqueRating ?? 0) + (report.coachTacticsRating ?? 0) + (report.coachKnowledgeRating ?? 0)) / 4).toFixed(1);
   };
 
   // 处理填写/编辑

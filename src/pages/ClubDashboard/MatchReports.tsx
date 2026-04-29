@@ -157,7 +157,7 @@ const MatchDetailModal: React.FC<MatchDetailModalProps> = ({ matchId, onClose })
       if (res.data?.success) {
         toast.success(`催办成功，已通知 ${res.data.data?.sent || 0} 位球员`);
       } else {
-        toast.error(res.data?.message || '催办失败');
+        toast.error((res.data as { message?: string } | undefined)?.message || '催办失败');
       }
     } catch (error) {
       toast.error((error as { response?: { data?: { error?: string } } })?.response?.data?.error || '催办失败，请稍后重试');

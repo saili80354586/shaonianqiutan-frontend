@@ -175,7 +175,9 @@ export const PhysicalTestSection: React.FC<PhysicalTestSectionProps> = ({ isEdit
       weight: ['weight', v => parseFloat(v)],
     };
     for (const [field, [apiKey, parser]] of Object.entries(fieldMap)) {
-      if (form[field]) data[apiKey] = parser(form[field]);
+      const formKey = field as keyof ReturnType<typeof emptyForm>;
+      const value = form[formKey];
+      if (value) data[apiKey] = parser(value);
     }
     return data;
   };

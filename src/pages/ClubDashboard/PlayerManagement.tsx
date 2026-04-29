@@ -114,7 +114,7 @@ const PlayerManagement: React.FC<PlayerManagementProps> = ({ onBack, onViewDetai
         });
 
         if (res.data?.success && res.data?.data) {
-          setPlayers(res.data.data.list.map((p: { id: number; name: string; age?: number; ageGroup?: string; position?: string; positionName?: string; joinDate?: string }) => ({
+          setPlayers(res.data.data.list.map((p: { id: number; name: string; age?: number; ageGroup?: string; position?: string; positionName?: string; joinDate?: string; totalReports?: number; status?: string }) => ({
             id: String(p.id),
             name: p.name,
             age: p.age || 0,
@@ -124,7 +124,7 @@ const PlayerManagement: React.FC<PlayerManagementProps> = ({ onBack, onViewDetai
             jerseyNumber: '-',
             joinDate: p.joinDate || '',
             reportCount: p.totalReports || 0,
-            status: (p.status === 'active' ? 'active' : 'inactive') as const,
+            status: p.status === 'active' ? 'active' : 'inactive',
           })));
           setPagination(prev => ({
             ...prev,
@@ -362,7 +362,7 @@ const PlayerManagement: React.FC<PlayerManagementProps> = ({ onBack, onViewDetai
                   status: statusFilter !== 'all' ? statusFilter : 'active',
                 });
                 if (res.data?.success && res.data?.data) {
-                  setPlayers(res.data.data.list.map((p: { id: number; name: string; age?: number; ageGroup?: string; position?: string; positionName?: string; joinDate?: string }) => ({
+                  setPlayers(res.data.data.list.map((p: { id: number; name: string; age?: number; ageGroup?: string; position?: string; positionName?: string; joinDate?: string; totalReports?: number; status?: string }) => ({
                     id: String(p.id),
                     name: p.name,
                     age: p.age || 0,
@@ -372,7 +372,7 @@ const PlayerManagement: React.FC<PlayerManagementProps> = ({ onBack, onViewDetai
                     jerseyNumber: '-',
                     joinDate: p.joinDate || '',
                     reportCount: p.totalReports || 0,
-                    status: (p.status === 'active' ? 'active' : 'inactive') as const,
+                    status: p.status === 'active' ? 'active' : 'inactive',
                   })));
                   setPagination(prev => ({
                     ...prev,

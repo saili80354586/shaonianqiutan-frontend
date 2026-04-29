@@ -40,7 +40,7 @@ const ClubMatchSummaries: React.FC<ClubMatchSummariesProps> = ({ onBack, onViewT
       }
     } catch (err) {
       console.error('加载比赛汇总统计失败:', err);
-      setError(err.response?.data?.message || '加载失败，请重试');
+      setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || '加载失败，请重试');
     } finally {
       setLoading(false);
     }

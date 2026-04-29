@@ -35,6 +35,20 @@ interface AnalyticsData {
   };
 }
 
+interface ApiEnvelope<T> {
+  success?: boolean;
+  data?: T;
+}
+
+const unwrapApiData = <T,>(payload: T | ApiEnvelope<T> | undefined): T | null => {
+  if (!payload) return null;
+  if (typeof payload === 'object' && 'success' in payload) {
+    const envelope = payload as ApiEnvelope<T>;
+    return envelope.success !== false && typeof envelope.data !== 'undefined' ? envelope.data : null;
+  }
+  return payload as T;
+};
+
 const ClubStats: React.FC<ClubStatsProps> = ({ onBack, clubName }) => {
   const [timeRange, setTimeRange] = useState<'month' | 'quarter' | 'year'>('month');
   const [loading, setLoading] = useState(true);
@@ -84,11 +98,13 @@ const ClubStats: React.FC<ClubStatsProps> = ({ onBack, clubName }) => {
           clubApi.getOrderStats(),
           clubApi.getAnalytics()
         ]);
-        if (mounted && orderRes?.data) {
-          setStats(orderRes.data);
+        const orderStats = unwrapApiData<StatsData>(orderRes?.data);
+        const analytics = unwrapApiData<AnalyticsData>(analyticsRes?.data);
+        if (mounted && orderStats) {
+          setStats(orderStats);
         }
-        if (mounted && analyticsRes?.data) {
-          setAnalyticsData(analyticsRes.data);
+        if (mounted && analytics) {
+          setAnalyticsData(analytics);
         }
       } catch (error) {
         console.error('获取统计数据失败:', error);
@@ -145,10 +161,10 @@ const ClubStats: React.FC<ClubStatsProps> = ({ onBack, clubName }) => {
 
         {/* 关键指标 */}
         <div className="grid grid-cols-4 gap-6 mb-8">
-          <StatCard icon={FileText} label="订单总数" value={stats?.totalOrders || 0} trend="+12%" subtext="较上月" color="blue" />
-          <StatCard icon={CreditCard} label="总支出" value={`¥${(stats?.totalAmount || 0).toLocaleString()}`} trend="+8%" subtext="较上月" color="emerald" />
-          <StatCard icon={Users} label="服务球员" value={stats?.completedOrders || 0} trend="+5" subtext="新增球员" color="purple" />
-          <StatCard icon={TrendingUp} label="平均评分" value={stats?.avgOrderValue?.toFixed(1) || '0'} trend="+0.2" subtext="服务质量" color="amber" />
+          <StatCard icon={FileText} label="订单总数" value={stats?.totalOrders || 0} subtext="当前累计" color="blue" />
+          <StatCard icon={CreditCard} label="总支出" value={`¥${(stats?.totalAmount || 0).toLocaleString()}`} subtext="当前累计" color="emerald" />
+          <StatCard icon={Users} label="已完成订单" value={stats?.completedOrders || 0} subtext="当前累计" color="purple" />
+          <StatCard icon={TrendingUp} label="平均客单价" value={`¥${Math.round(stats?.avgOrderValue || 0).toLocaleString()}`} subtext="订单均值" color="amber" />
         </div>
 
         {/* 图表区域 */}
@@ -188,7 +204,7 @@ const ClubStats: React.FC<ClubStatsProps> = ({ onBack, clubName }) => {
                   <Tooltip 
                     contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px' }}
                     itemStyle={{ color: '#fff' }}
-                    formatter={(value: number) => `¥${value}`}
+                    formatter={(value) => `¥${Number(value ?? 0)}`}
                   />
                   <Line type="monotone" dataKey="amount" stroke="#8b5cf6" strokeWidth={2} dot={{ fill: '#8b5cf6' }} />
                 </LineChart>
@@ -250,7 +266,7 @@ const ClubStats: React.FC<ClubStatsProps> = ({ onBack, clubName }) => {
                     cy="50%"
                     outerRadius={80}
                     dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
                   >
                     <Cell fill="#8b5cf6" />
                     <Cell fill="#3b82f6" />
@@ -264,7 +280,7 @@ const ClubStats: React.FC<ClubStatsProps> = ({ onBack, clubName }) => {
                 <div key={i} className="p-3 bg-gray-800/50 rounded-lg">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-gray-400">{item.name}</span>
-                    <span className="text-white font-medium">{item.value}%</span>
+                    <span className="text-white font-medium">{item.value}单</span>
                   </div>
                   <div className="text-sm text-emerald-400">¥{Number(item.amount || 0).toLocaleString()}</div>
                 </div>
@@ -319,8 +335,8 @@ interface StatCardProps {
   icon: LucideIcon;
   label: string;
   value: string | number;
-  trend: string;
-  subtext: string;
+  trend?: string;
+  subtext?: string;
   color: 'blue' | 'emerald' | 'purple' | 'amber';
 }
 
@@ -337,11 +353,11 @@ const StatCard = ({ icon: Icon, label, value, trend, subtext, color }: StatCardP
         <div className="p-3 bg-white/10 rounded-xl">
           <Icon className="w-6 h-6" />
         </div>
-        <span className="text-sm text-emerald-400">{trend}</span>
+        {trend && <span className="text-sm text-emerald-400">{trend}</span>}
       </div>
       <div className="text-2xl font-bold text-white mb-1">{value}</div>
       <div className="text-sm text-gray-400">{label}</div>
-      <div className="text-xs text-gray-500 mt-1">{subtext}</div>
+      {subtext && <div className="text-xs text-gray-500 mt-1">{subtext}</div>}
     </div>
   );
 };

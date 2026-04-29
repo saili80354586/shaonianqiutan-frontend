@@ -242,8 +242,12 @@ export const reportApi = {
     api.get(`/club/players/${playerId}/physical-reports`),
 
   // 获取报告详情
-  getReportDetail: (reportId: string) =>
-    api.get(`/club/players/${reportId}`),
+  getReportDetail: (reportId: string | number) =>
+    api.get(`/club/physical-reports/${reportId}`),
+
+  // 导出体测报告
+  downloadPhysicalReport: (reportId: string | number) =>
+    api.get(`/club/physical-reports/${reportId}/export`, { responseType: 'blob' }),
 
   // 导出PDF
   exportPDF: (reportId: string) =>

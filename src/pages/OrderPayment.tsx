@@ -15,8 +15,8 @@ const OrderPayment: React.FC = () => {
   const [countdown, setCountdown] = useState(900); // 15分钟
   const [payStatus, setPayStatus] = useState<'idle' | 'paying' | 'success' | 'failed'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (!orderId) {

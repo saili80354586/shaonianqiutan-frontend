@@ -49,8 +49,11 @@ export class CoachDashboardPage {
   }
 
   async clickFirstTeamCard() {
-    // 点击第一个包含 "U12一队" 的球队卡片
-    const firstCard = this.page.locator('h3:has-text("U12一队")').locator('..').first();
+    // 演示数据中的球队名会变化，按当前列表中的第一个球队卡片进入详情。
+    const firstCard = this.page
+      .locator('main div[class*="cursor-pointer"]')
+      .filter({ has: this.page.locator('h3') })
+      .first();
     await expect(firstCard).toBeVisible({ timeout: 10000 });
     await firstCard.click();
     await this.page.waitForLoadState('networkidle');
@@ -59,7 +62,7 @@ export class CoachDashboardPage {
   // ================== 球队详情页（复用 TeamDetail）相关方法 ==================
 
   async clickMatchTab() {
-    const matchTab = this.page.locator('button:has-text("比赛")').first();
+    const matchTab = this.page.locator('main button').filter({ hasText: /^比赛$/ }).first();
     await expect(matchTab).toBeVisible({ timeout: 5000 });
     await matchTab.click();
     await this.page.waitForTimeout(300);
@@ -81,24 +84,24 @@ export class CoachDashboardPage {
   }) {
     const modal = this.page.locator('div').filter({ has: this.page.locator('h2:has-text("创建比赛")') }).first();
 
-    const matchNameInput = modal.locator('label:has-text("赛事名称")').locator('+ input, ~ input').first();
+    const matchNameInput = modal.locator('label:has-text("赛事名称")').locator('..').locator('input').first();
     await matchNameInput.fill(data.matchName);
 
     if (data.matchDate) {
-      const dateInput = modal.locator('label:has-text("比赛日期")').locator('+ input, ~ input').first();
+      const dateInput = modal.locator('label:has-text("比赛日期")').locator('..').locator('input').first();
       await dateInput.fill(data.matchDate);
     }
 
-    const opponentInput = modal.locator('label:has-text("对手球队")').locator('+ input, ~ input').first();
+    const opponentInput = modal.locator('label:has-text("对手球队")').locator('..').locator('input').first();
     await opponentInput.fill(data.opponent);
 
     if (data.ourScore !== undefined) {
-      const ourScoreInput = modal.locator('label:has-text("我方进球")').locator('+ input, ~ input').first();
+      const ourScoreInput = modal.locator('label:has-text("我方进球")').locator('..').locator('input').first();
       await ourScoreInput.fill(data.ourScore.toString());
     }
 
     if (data.opponentScore !== undefined) {
-      const opponentScoreInput = modal.locator('label:has-text("对方进球")').locator('+ input, ~ input').first();
+      const opponentScoreInput = modal.locator('label:has-text("对方进球")').locator('..').locator('input').first();
       await opponentScoreInput.fill(data.opponentScore.toString());
     }
   }

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Users, FileText, CreditCard, Check, Search, Plus, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Check, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { clubApi, orderApi } from '../../services/api';
 
 interface BatchOrderProps {
-  onBack: () => void;
+  onBack?: () => void;
 }
 
 interface Player {
@@ -28,6 +29,7 @@ const DISCOUNTS = [
 ];
 
 const BatchOrder: React.FC<BatchOrderProps> = ({ onBack }) => {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [selectedPlayers, setSelectedPlayers] = useState<Player[]>([]);
   const [serviceType, setServiceType] = useState('full_report');
@@ -37,7 +39,7 @@ const BatchOrder: React.FC<BatchOrderProps> = ({ onBack }) => {
   const [remark, setRemark] = useState('');
 
   const service = SERVICES.find(s => s.id === serviceType) || SERVICES[1];
-  const discount = DISCOUNTS.find(d => selectedPlayers.length >= d.min && selectedPlayers.length <= d.max) || DISCOUNTS[0];
+  const discount = DISCOUNTS.find(d => selectedPlayers.length >= d.min && selectedPlayers.length <= d.max) || { min: 0, max: 4, rate: 1, label: '无折扣' };
   const originalPrice = service.price * selectedPlayers.length;
   const finalPrice = originalPrice * discount.rate;
   const discountAmount = originalPrice - finalPrice;
@@ -46,13 +48,18 @@ const BatchOrder: React.FC<BatchOrderProps> = ({ onBack }) => {
     setLoading(true);
     try {
       const res = await clubApi.getPlayers({ keyword: searchQuery, pageSize: 20 });
-      if (res.data?.success && res.data?.data) setPlayers(res.data.data.list || []);
+      if (res.data?.success && res.data?.data) {
+        setPlayers((res.data.data.list || []).map((p: any) => ({
+          id: Number(p.userId || p.id),
+          name: p.name || '未知球员',
+          positionName: p.positionName || p.position || '未知',
+          ageGroup: p.ageGroup || '-',
+        })));
+      }
     } catch (error) {
-      setPlayers([
-        { id: 1, name: '张小明', positionName: '前锋', ageGroup: 'U12' },
-        { id: 2, name: '李小红', positionName: '中场', ageGroup: 'U10' },
-        { id: 3, name: '王强', positionName: '后卫', ageGroup: 'U12' },
-      ]);
+      console.error('搜索球员失败:', error);
+      setPlayers([]);
+      toast.error('球员加载失败，请稍后重试');
     }
     setLoading(false);
   };
@@ -65,9 +72,13 @@ const BatchOrder: React.FC<BatchOrderProps> = ({ onBack }) => {
     if (selectedPlayers.length === 0) return;
     setLoading(true);
     try {
-      await orderApi.create({ playerIds: selectedPlayers.map(p => p.id), serviceType, amount: finalPrice, remark });
+      const res = await orderApi.createBatchOrders({ playerIds: selectedPlayers.map(p => p.id), serviceType, remark });
+      if (!res.data?.success) {
+        toast.error(res.data?.message || '订单创建失败，请重试');
+        return;
+      }
       toast.success('订单创建成功！');
-      onBack();
+      (onBack || (() => navigate('/club/dashboard')))();
     } catch (error) {
       toast.error('订单创建失败，请重试');
     }
@@ -77,7 +88,7 @@ const BatchOrder: React.FC<BatchOrderProps> = ({ onBack }) => {
   return (
     <div className="min-h-screen bg-[#0f1419]">
       <div className="max-w-4xl mx-auto p-8">
-        <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white mb-6">
+        <button onClick={onBack || (() => navigate('/club/dashboard'))} className="flex items-center gap-2 text-gray-400 hover:text-white mb-6">
           <ArrowLeft className="w-5 h-5" />返回
         </button>
 

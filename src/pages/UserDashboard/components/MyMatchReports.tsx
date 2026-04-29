@@ -441,7 +441,7 @@ export const MyMatchReports: React.FC<MyMatchReportsProps> = ({ onBack }) => {
                       {myReview.coachRating && myReview.coachRating > 0 && (
                         <div className="flex mt-1">
                           {[1,2,3,4,5].map(i => (
-                            <Star key={i} className={`w-3.5 h-3.5 ${i <= myReview.coachRating ? 'text-amber-400 fill-amber-400' : 'text-gray-600'}`} />
+                            <Star key={i} className={`w-3.5 h-3.5 ${i <= (myReview.coachRating ?? 0) ? 'text-amber-400 fill-amber-400' : 'text-gray-600'}`} />
                           ))}
                         </div>
                       )}
