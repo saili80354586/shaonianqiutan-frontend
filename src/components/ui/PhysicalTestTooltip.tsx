@@ -34,31 +34,12 @@ export const PhysicalTestTooltip: React.FC<PhysicalTestTooltipProps> = ({
   children,
   className = '',
 }) => {
-  // ── inline 模式 ────────────────────────────────
-  if (inline) {
-    const item = getTestItem(itemKey);
-    if (!item) return null;
-    return (
-      <span
-        className={`inline-flex items-center gap-1 ${className}`}
-        title={item.standard.method[0] || item.label}
-      >
-        {children || <Info className="w-3.5 h-3.5 text-gray-500" />}
-      </span>
-    );
-  }
-
   // ── 状态 ────────────────────────────────────────
   const [open, setOpen] = React.useState(false);
   const hideTimerRef = useRef<number | null>(null);
   const triggerRef = useRef<HTMLButtonElement | HTMLSpanElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const item = getTestItem(itemKey);
-
-  if (!item) return null;
-
-  const catConfig = CATEGORY_CONFIG[item.category];
-  const isLowerBetter = item.lowerIsBetter;
 
   // ── 防抖关闭 ───────────────────────────────────
   const scheduleHide = useCallback(() => {
@@ -99,6 +80,23 @@ export const PhysicalTestTooltip: React.FC<PhysicalTestTooltipProps> = ({
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
+
+  if (!item) return null;
+
+  // ── inline 模式 ────────────────────────────────
+  if (inline) {
+    return (
+      <span
+        className={`inline-flex items-center gap-1 ${className}`}
+        title={item.standard.method[0] || item.label}
+      >
+        {children || <Info className="w-3.5 h-3.5 text-gray-500" />}
+      </span>
+    );
+  }
+
+  const catConfig = CATEGORY_CONFIG[item.category];
+  const isLowerBetter = item.lowerIsBetter;
 
   // ── tooltip 内容 ───────────────────────────────
   const tooltip = (
@@ -141,7 +139,7 @@ export const PhysicalTestTooltip: React.FC<PhysicalTestTooltipProps> = ({
                 className="text-[10px] px-1.5 py-0.5 rounded"
                 style={{ backgroundColor: `${catConfig.color}20`, color: catConfig.color }}
               >
-                {catConfig.categoryName}
+                {catConfig.label}
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Plus, RotateCcw, Download, Circle, MousePointer2, Pencil, Minus, Trash2, Undo2, Redo2, LayoutTemplate } from 'lucide-react';
 import { DraggablePlayer, SoccerBall } from './DraggablePlayer';
 import type { PlayerPosition, BallPosition } from './DraggablePlayer';
+export type { PlayerPosition, BallPosition } from './DraggablePlayer';
 import { TacticImageGenerator } from './TacticImageGenerator';
 
 export type MatchFormat = '5人制' | '8人制' | '11人制';
@@ -25,7 +26,7 @@ const LINE_WIDTH_LABELS: Record<LineWidth, string> = {
 };
 
 /** 绘制的线条数据 */
-interface DrawnLine {
+export interface DrawnLine {
   id: string;
   type: 'arrow' | 'line' | 'pen';
   points: { x: number; y: number }[]; // 百分比坐标

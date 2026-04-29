@@ -18,6 +18,8 @@ interface TrainingNotesProps {
   onBack: () => void;
 }
 
+const createTrainingNoteId = () => Date.now().toString();
+
 const TrainingNotes: React.FC<TrainingNotesProps> = ({ onBack }) => {
   const [notes, setNotes] = useState<TrainingNote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,12 +28,18 @@ const TrainingNotes: React.FC<TrainingNotesProps> = ({ onBack }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingNote, setEditingNote] = useState<TrainingNote | null>(null);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    playerName: string;
+    title: string;
+    content: string;
+    category: TrainingNote['category'];
+    priority: TrainingNote['priority'];
+  }>({
     playerName: '',
     title: '',
     content: '',
-    category: 'technical' as const,
-    priority: 'medium' as const,
+    category: 'technical',
+    priority: 'medium',
   });
 
   useEffect(() => {
@@ -57,7 +65,7 @@ const TrainingNotes: React.FC<TrainingNotesProps> = ({ onBack }) => {
       setNotes(notes.map(n => n.id === editingNote.id ? { ...n, ...formData } : n));
     } else {
       const newNote: TrainingNote = {
-        id: Date.now().toString(),
+        id: createTrainingNoteId(),
         ...formData,
         playerId: 'new',
         date: new Date().toISOString().split('T')[0],

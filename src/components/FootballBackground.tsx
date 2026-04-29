@@ -5,6 +5,8 @@ interface FootballBackgroundProps {
   variant?: 'default' | 'role-select' | 'form';
 }
 
+const pseudoRandom = (seed: number) => ((seed * 9301 + 49297) % 233280) / 233280;
+
 // 科技感足球场线 - 带发光效果
 const FieldLines: React.FC<{ color: string }> = ({ color }) => (
   <svg
@@ -179,11 +181,11 @@ const ParticleField: React.FC<{ count: number; color: string }> = ({ count, colo
   const particles = useMemo(() => {
     return Array.from({ length: count }, (_, i) => ({
       id: i,
-      x: `${Math.random() * 100}%`,
-      y: `${Math.random() * 100}%`,
-      size: 2 + Math.random() * 3,
-      delay: Math.random() * 5,
-      duration: 3 + Math.random() * 4,
+      x: `${pseudoRandom(i + 1) * 100}%`,
+      y: `${pseudoRandom(i + 11) * 100}%`,
+      size: 2 + pseudoRandom(i + 21) * 3,
+      delay: pseudoRandom(i + 31) * 5,
+      duration: 3 + pseudoRandom(i + 41) * 4,
     }));
   }, [count]);
 
@@ -337,12 +339,12 @@ export const FootballBackground: React.FC<FootballBackgroundProps> = ({ step, va
     const balls = [];
     for (let i = 0; i < 5; i++) {
       balls.push({
-        size: 28 + Math.random() * 24,
-        x: `${10 + Math.random() * 80}%`,
-        y: `${10 + Math.random() * 80}%`,
-        delay: Math.random() * 5,
-        duration: 20 + Math.random() * 15,
-        color: Math.random() > 0.5 ? primaryColor : accentColor,
+        size: 28 + pseudoRandom(i + 101) * 24,
+        x: `${10 + pseudoRandom(i + 111) * 80}%`,
+        y: `${10 + pseudoRandom(i + 121) * 80}%`,
+        delay: pseudoRandom(i + 131) * 5,
+        duration: 20 + pseudoRandom(i + 141) * 15,
+        color: pseudoRandom(i + 151) > 0.5 ? primaryColor : accentColor,
       });
     }
     return balls;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Shield, CheckCircle2, DollarSign, Users, Award, Briefcase, ArrowLeft, Sparkles, TrendingUp, Clock, Star, FileText, Video, BarChart3, Wallet } from 'lucide-react';
 import { analystApplicationApi } from '../services/api';
@@ -93,18 +93,10 @@ const AnalystRegister: React.FC = () => {
     confirmPassword: '',
   });
 
-  const [availableCities, setAvailableCities] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (formData.province && cityData[formData.province]) {
-      setAvailableCities(cityData[formData.province]);
-    } else {
-      setAvailableCities([]);
-    }
-  }, [formData.province]);
+  const availableCities = formData.province ? cityData[formData.province] || [] : [];
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -398,7 +390,7 @@ const AnalystRegister: React.FC = () => {
           </form>
 
           <div className="text-center mt-6 text-text-muted">
-            已有账号？<Link to="/analyst/login" className="text-accent font-semibold no-underline">分析师登录</Link>
+            已有账号？<Link to="/login" className="text-accent font-semibold no-underline">分析师登录</Link>
           </div>
         </div>
       </div>

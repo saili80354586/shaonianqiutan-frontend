@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
+type LayoutShiftEntry = PerformanceEntry & {
+  hadRecentInput?: boolean;
+  value?: number;
+};
+
+type FirstInputEntry = PerformanceEntry & {
+  processingStart?: number;
+};
+
 /**
  * 防抖 Hook
  * @param value 需要防抖的值
@@ -186,14 +195,14 @@ function areDepsEqual(prevDeps: React.DependencyList, nextDeps: React.Dependency
  */
 export function usePerformanceMonitor(componentName: string) {
   const renderCount = useRef(0);
-  const startTime = useRef(performance.now());
+  const startTime = useRef(0);
 
   useEffect(() => {
     renderCount.current += 1;
     const endTime = performance.now();
-    const renderTime = endTime - startTime.current;
+    const renderTime = startTime.current ? endTime - startTime.current : 0;
 
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.log(
         `[Performance] ${componentName} - Render #${renderCount.current}: ${renderTime.toFixed(2)}ms`
       );
@@ -250,8 +259,9 @@ export function measureWebVitals() {
     // CLS - Cumulative Layout Shift
     new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
-        if (!entry.hadRecentInput) {
-          console.log('[Web Vitals] CLS:', entry.value);
+        const layoutEntry = entry as LayoutShiftEntry;
+        if (!layoutEntry.hadRecentInput) {
+          console.log('[Web Vitals] CLS:', layoutEntry.value);
         }
       }
     }).observe({ entryTypes: ['layout-shift'] as any });
@@ -266,7 +276,8 @@ export function measureWebVitals() {
     // FID - First Input Delay
     new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
-        const fid = entry.processingStart - entry.startTime;
+        const inputEntry = entry as FirstInputEntry;
+        const fid = (inputEntry.processingStart ?? inputEntry.startTime) - inputEntry.startTime;
         console.log('[Web Vitals] FID:', fid);
       }
     }).observe({ entryTypes: ['first-input'] as any });

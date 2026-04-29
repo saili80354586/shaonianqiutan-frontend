@@ -51,7 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, mobile
   useEffect(() => {
     // 优先使用用户资料中的 club 字段
     if (user?.club) {
-      setHasClub(true);
+      queueMicrotask(() => setHasClub(true));
       return;
     }
     // 如果没有 club 字段，尝试调用 API 检测

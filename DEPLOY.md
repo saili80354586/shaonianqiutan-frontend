@@ -24,6 +24,37 @@ npm run build
 
 构建输出将在 `dist/` 目录中。
 
+## 环境变量
+
+前端运行时默认通过同源路径访问后端，推荐生产环境让 Nginx 代理 `/api` 和 `/ws`：
+
+```bash
+VITE_API_BASE_URL=/api
+VITE_WS_URL=
+```
+
+本地开发时，Vite 会把 `/api` 和 `/ws` 转发到后端：
+
+```bash
+VITE_DEV_API_TARGET=http://localhost:8080
+VITE_DEV_SERVER_PORT=5173
+```
+
+如果前端需要直连独立 API 域名，可以显式设置：
+
+```bash
+VITE_API_BASE_URL=https://api.your-domain.com/api
+VITE_WS_URL=wss://api.your-domain.com/ws
+```
+
+后端需要同步允许对应前端来源：
+
+```bash
+FRONTEND_URL=https://your-domain.com
+CORS_ALLOWED_ORIGINS=https://your-domain.com,https://admin.your-domain.com
+BASE_URL=https://api.your-domain.com
+```
+
 ## 手动部署
 
 ### 1. 构建应用
@@ -56,9 +87,19 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # API 代理 (如果需要)
+    # API 代理
     location /api {
         proxy_pass http://backend-server:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # WebSocket 代理
+    location /ws {
+        proxy_pass http://backend-server:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }

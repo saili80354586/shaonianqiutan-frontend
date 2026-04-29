@@ -114,8 +114,8 @@ const AnimatedCounter: React.FC<{ end: number | string; suffix?: string; duratio
 
   useEffect(() => {
     if (!isVisible) return;
-    const numericEnd = typeof end === 'string' ? parseInt(end) || 0 : end;
-    if (isNaN(numericEnd)) { setCount(end as any); return; }
+    const numericEnd = typeof end === 'string' ? parseInt(end, 10) : end;
+    if (Number.isNaN(numericEnd)) return;
     const startTime = Date.now();
     const update = () => {
       const elapsed = Date.now() - startTime;
@@ -127,7 +127,7 @@ const AnimatedCounter: React.FC<{ end: number | string; suffix?: string; duratio
     requestAnimationFrame(update);
   }, [isVisible, end, duration]);
 
-  const displayValue = typeof end === 'string' && isNaN(parseInt(end)) ? end : count;
+  const displayValue = typeof end === 'string' && Number.isNaN(parseInt(end, 10)) ? end : count;
   return <span ref={ref}>{displayValue}{suffix}</span>;
 };
 

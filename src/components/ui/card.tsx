@@ -1,14 +1,16 @@
 import * as React from "react"
 import { cn } from "../../lib/utils"
 
+export type CardProps = React.HTMLAttributes<HTMLDivElement> & {
+  hover?: boolean
+  glass?: boolean
+  padding?: 'none' | 'sm' | 'md' | 'lg'
+}
+
 // 主卡片组件
 const Card = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & { 
-    hover?: boolean
-    glass?: boolean
-    padding?: 'none' | 'sm' | 'md' | 'lg'
-  }
+  CardProps
 >(({ className = '', hover = false, glass = false, padding = 'md', ...props }, ref) => {
   const paddings = {
     none: '',

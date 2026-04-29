@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Clock, CheckCircle, FileText, Mail, Phone, Shield, AlertCircle } from 'lucide-react';
 
@@ -13,7 +13,8 @@ const RegisterPending: React.FC = () => {
   const state = location.state as LocationState;
   const role = state?.role || 'analyst';
   const nickname = state?.nickname || '申请者';
-  const applicationId = state?.applicationId || 'SA' + Date.now().toString().slice(-8);
+  const [fallbackApplicationId] = useState(() => 'SA' + Date.now().toString().slice(-8));
+  const applicationId = state?.applicationId || fallbackApplicationId;
 
   const roleConfig = {
     analyst: {

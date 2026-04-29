@@ -7,6 +7,8 @@ interface FootballBackgroundProps {
   step?: number;
 }
 
+const pseudoRandom = (seed: number) => ((seed * 9301 + 49297) % 233280) / 233280;
+
 // 足球场线元素
 const FieldLines: React.FC<{ color: string }> = ({ color }) => (
   <svg
@@ -229,12 +231,12 @@ export const FootballBackground: React.FC<FootballBackgroundProps> = ({
     const balls = [];
     for (let i = 0; i < 8; i++) {
       balls.push({
-        size: 30 + Math.random() * 40,
-        x: `${Math.random() * 100}%`,
-        y: `${Math.random() * 100}%`,
-        delay: Math.random() * 5,
-        duration: 15 + Math.random() * 10,
-        color: Math.random() > 0.5 ? primaryColor : accentColor,
+        size: 30 + pseudoRandom(i + 1) * 40,
+        x: `${pseudoRandom(i + 11) * 100}%`,
+        y: `${pseudoRandom(i + 21) * 100}%`,
+        delay: pseudoRandom(i + 31) * 5,
+        duration: 15 + pseudoRandom(i + 41) * 10,
+        color: pseudoRandom(i + 51) > 0.5 ? primaryColor : accentColor,
       });
     }
     return balls;
@@ -255,7 +257,7 @@ export const FootballBackground: React.FC<FootballBackgroundProps> = ({
       <div className="absolute inset-0 bg-[#0a0a0f]" />
       
       {/* 渐变光晕 */}
-      <GradientGlow role={role} />
+      <GradientGlow role={role ?? null} />
       
       {/* 六边形网格 */}
       <HexagonGrid color={primaryColor} />

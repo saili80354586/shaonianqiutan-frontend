@@ -72,7 +72,7 @@ const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(
           <div
             key={i}
             className="h-4 bg-tertiary rounded animate-pulse"
-            style={{ width: `${Math.random() * 40 + 60}%` }}
+            style={{ width: `${60 + ((i * 17) % 40)}%` }}
           />
         ))}
       </div>
@@ -150,10 +150,11 @@ const StatsGridSkeleton = ({ count = 4, columns = 4 }: StatsGridSkeletonProps) =
 // Table Skeleton
 interface TableSkeletonProps {
   rows?: number
+  count?: number
   cols?: number
 }
 
-const TableSkeleton = ({ rows = 5, cols = 6 }: TableSkeletonProps) => (
+const TableSkeleton = ({ rows = 5, count, cols = 6 }: TableSkeletonProps) => (
   <div className="bg-[#1a1f2e] rounded-2xl border border-gray-800 overflow-hidden">
     <table className="w-full">
       <thead className="bg-gray-800/50">
@@ -166,7 +167,7 @@ const TableSkeleton = ({ rows = 5, cols = 6 }: TableSkeletonProps) => (
         </tr>
       </thead>
       <tbody className="divide-y divide-gray-800">
-        {Array.from({ length: rows }).map((_, r) => (
+        {Array.from({ length: count ?? rows }).map((_, r) => (
           <tr key={r}>
             <td className="px-6 py-4">
               <div className="flex items-center gap-3">

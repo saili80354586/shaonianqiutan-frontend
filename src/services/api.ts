@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api';
 
 // ========== Token Refresh Logic ==========
 let isRefreshing = false;
@@ -32,14 +33,12 @@ export interface ApiResponse<T = any> {
   };
 }
 
-const BASE_URL = import.meta.env.VITE_API_URL || '/api';
-
 export function unwrapApiResponse<T = any>(response: any): ApiResponse<T> {
   return response?.data?.success !== undefined ? response.data : response;
 }
 
 export const http = axios.create({
-  baseURL: BASE_URL,
+  baseURL: API_BASE_URL,
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 });
@@ -138,7 +137,7 @@ export async function downloadBlob(
   const url = window.URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
-  const filename = options.filename || getFilenameFromContentDisposition(response.headers?.['content-disposition']);
+  const filename = getFilenameFromContentDisposition(response.headers?.['content-disposition']) || options.filename;
   if (filename) anchor.download = filename;
   document.body.appendChild(anchor);
   anchor.click();
@@ -224,6 +223,9 @@ export const reportApi = {
   downloadReportFile: (id: number, filename?: string) =>
     downloadBlob(`/reports/${id}/download`, { filename }),
   getPlayerReports: (playerId: number) => http.get(`/club/players/${playerId}/physical-reports`),
+  getPhysicalReportDetail: (reportId: number | string) => http.get(`/club/physical-reports/${reportId}`),
+  downloadPhysicalReport: (reportId: number | string, filename?: string) =>
+    downloadBlob(`/club/physical-reports/${reportId}/export`, { filename }),
   exportPDF: (reportId: string) => http.get(`/club/reports/${reportId}/export`, { responseType: 'blob' }),
 };
 
@@ -545,17 +547,26 @@ export const clubActivityApi = {
   createActivity: (clubId: number, data: any) => http.post(`/clubs/${clubId}/activities`, data),
   updateActivity: (clubId: number, id: number, data: any) => http.put(`/clubs/${clubId}/activities/${id}`, data),
   deleteActivity: (clubId: number, id: number) => http.delete(`/clubs/${clubId}/activities/${id}`),
+  publishActivity: (clubId: number, id: number) => http.post(`/clubs/${clubId}/activities/${id}/publish`),
+  unpublishActivity: (clubId: number, id: number) => http.post(`/clubs/${clubId}/activities/${id}/unpublish`),
   registerActivity: (clubId: number, id: number, data: any) => http.post(`/clubs/${clubId}/activities/${id}/register`, data),
   getRegistrations: (clubId: number, id: number) => http.get(`/clubs/${clubId}/activities/${id}/registrations`),
   updateRegistrationStatus: (clubId: number, id: number, regId: number, data: any) => http.put(`/clubs/${clubId}/activities/${id}/registrations/${regId}`, data),
+  batchUpdateRegistrationStatus: (clubId: number, id: number, data: { ids: number[]; status: string }) => http.post(`/clubs/${clubId}/activities/${id}/registrations/batch`, data),
+  exportRegistrations: (clubId: number, id: number) =>
+    downloadBlob(`/clubs/${clubId}/activities/${id}/registrations/export`, {
+      filename: `活动报名_${id}.csv`,
+    }),
   // 公开活动
   getPublicActivities: (params?: any) => http.get('/activities', { params }),
   getPublicActivity: (id: number) => http.get(`/activities/${id}`),
-  getActivitiesMap: () => http.get('/activities/map'),
+  getActivitiesMap: (params?: any) => http.get('/activities/map', { params }),
+  registerPublicActivity: (id: number, data: any) => http.post(`/activities/${id}/register`, data),
+  cancelPublicRegistration: (id: number) => http.post(`/activities/${id}/cancel`),
   // 公开俱乐部列表
   getPublicClubs: (params?: any) => http.get('/clubs', { params }),
   // 球员端
-  getMyRegistrations: () => http.get('/user/registrations'),
+  getMyRegistrations: (params?: any) => http.get('/user/registrations', { params }),
   cancelRegistration: (clubId: number, activityId: number) => http.post(`/clubs/${clubId}/activities/${activityId}/cancel`),
 };
 

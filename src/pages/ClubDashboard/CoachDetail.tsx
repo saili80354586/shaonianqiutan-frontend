@@ -71,6 +71,7 @@ const CoachDetail: React.FC<CoachDetailProps> = ({ coachId, onBack, isAdmin }) =
   const [teams, setTeams] = useState<{ id: number; name: string }[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [assignRole, setAssignRole] = useState('head_coach');
+  const [todayTimestamp] = useState(() => Date.now());
 
   useEffect(() => {
     loadCoach();
@@ -300,7 +301,7 @@ const CoachDetail: React.FC<CoachDetailProps> = ({ coachId, onBack, isAdmin }) =
           <StatCard
             icon={Calendar}
             label="入职天数"
-            value={coach.joinedAt ? Math.max(1, Math.floor((Date.now() - new Date(coach.joinedAt).getTime()) / (1000 * 60 * 60 * 24))) : '-'}
+            value={coach.joinedAt ? Math.max(1, Math.floor((todayTimestamp - new Date(coach.joinedAt).getTime()) / (1000 * 60 * 60 * 24))) : '-'}
             color="violet"
           />
         </div>

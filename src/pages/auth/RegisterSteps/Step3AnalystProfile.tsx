@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { BarChart3, User, MapPin, Briefcase, Award, FileText, ArrowLeft, ArrowRight, CheckCircle2, Upload, AlertCircle } from 'lucide-react';
 
 interface Step3AnalystProfileProps {
@@ -109,16 +109,8 @@ const Step3AnalystProfile: React.FC<Step3AnalystProfileProps> = ({ onSubmit, onB
     experience: '',
     certificates: [],
   });
-  const [availableCities, setAvailableCities] = useState<string[]>([]);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (formData.province && cityData[formData.province]) {
-      setAvailableCities(cityData[formData.province]);
-    } else {
-      setAvailableCities([]);
-    }
-  }, [formData.province]);
+  const availableCities = formData.province ? cityData[formData.province] || [] : [];
 
   const handleChange = (field: keyof AnalystProfileData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));

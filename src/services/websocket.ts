@@ -4,6 +4,7 @@
  */
 
 import { useAuthStore } from '../store';
+import { getWebSocketUrl } from '../config/api';
 
 export interface WebSocketMessage {
   type: string;
@@ -43,10 +44,7 @@ class WebSocketService {
       return;
     }
 
-    // 判断环境使用不同协议
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = import.meta.env.VITE_WS_URL || window.location.host;
-    const nextUrl = `${protocol}//${host}/ws?token=${token}`;
+    const nextUrl = getWebSocketUrl(token);
 
     if (
       this.ws &&

@@ -2,7 +2,8 @@
 
 ## 基础信息
 
-- **Base URL**: `http://localhost:8080/api`
+- **Base URL**: 本地开发默认使用前端同源代理 `/api`；直连后端时使用 `http://localhost:8080/api`
+- **前端运行时变量**: `VITE_API_BASE_URL`，默认 `/api`
 - **认证方式**: Bearer Token (JWT)
 - **Content-Type**: `application/json`
 

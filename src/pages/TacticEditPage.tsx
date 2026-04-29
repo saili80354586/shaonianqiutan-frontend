@@ -28,35 +28,45 @@ export const TacticEditPage: React.FC = () => {
 
   // ========== 初始化 ==========
   useEffect(() => {
-    // 从 URL params 获取模式
-    const urlMode = searchParams.get('mode') as 'create' | 'edit' | null;
-    const urlIndex = searchParams.get('index');
+    let cancelled = false;
 
-    setMode(urlMode === 'edit' ? 'edit' : 'create');
-    if (urlIndex) setScenarioIndex(parseInt(urlIndex));
+    queueMicrotask(() => {
+      if (cancelled) return;
 
-    // 尝试从 sessionStorage 获取已有数据（编辑模式）
-    const raw = sessionStorage.getItem('tactic_edit_data');
-    if (raw) {
-      try {
-        const data = JSON.parse(raw);
-        if (data.scenario) {
-          setTitle(data.scenario.title || '');
-          setDescription(data.scenario.description || '');
-          setQuestion(data.scenario.question || '');
-          setFormat(data.scenario.format || '11人制');
-          setPlayers(data.scenario.positions || []);
-          if (data.scenario.ball) setBall(data.scenario.ball);
-          if (data.scenario.lines) setLines(data.scenario.lines);
-        }
-        if (data.mode) setMode(data.mode);
-        if (data.scenarioIndex !== undefined) setScenarioIndex(data.scenarioIndex);
-        sessionStorage.removeItem('tactic_edit_data');
-      } catch { /* ignore */ }
-    }
+      // 从 URL params 获取模式
+      const urlMode = searchParams.get('mode') as 'create' | 'edit' | null;
+      const urlIndex = searchParams.get('index');
 
-    // 始终标记为已初始化，不再强制重定向
-    setInitialized(true);
+      setMode(urlMode === 'edit' ? 'edit' : 'create');
+      if (urlIndex) setScenarioIndex(parseInt(urlIndex, 10));
+
+      // 尝试从 sessionStorage 获取已有数据（编辑模式）
+      const raw = sessionStorage.getItem('tactic_edit_data');
+      if (raw) {
+        try {
+          const data = JSON.parse(raw);
+          if (data.scenario) {
+            setTitle(data.scenario.title || '');
+            setDescription(data.scenario.description || '');
+            setQuestion(data.scenario.question || '');
+            setFormat(data.scenario.format || '11人制');
+            setPlayers(data.scenario.positions || []);
+            if (data.scenario.ball) setBall(data.scenario.ball);
+            if (data.scenario.lines) setLines(data.scenario.lines);
+          }
+          if (data.mode) setMode(data.mode);
+          if (data.scenarioIndex !== undefined) setScenarioIndex(data.scenarioIndex);
+          sessionStorage.removeItem('tactic_edit_data');
+        } catch { /* ignore */ }
+      }
+
+      // 始终标记为已初始化，不再强制重定向
+      setInitialized(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ========== 保存并返回 ==========

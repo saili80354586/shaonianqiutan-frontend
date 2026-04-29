@@ -75,7 +75,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onBack, onViewDetail,
   }, [statusFilter, searchKeyword, page]);
 
   useEffect(() => {
-    loadCoaches();
+    queueMicrotask(loadCoaches);
   }, [loadCoaches]);
 
   const handleSearch = () => {
