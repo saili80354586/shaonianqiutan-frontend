@@ -2,16 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { analystApi } from '../../services/api';
 import type { Order, OrderType } from '../../types';
 import { 
-  Clock, 
   User, 
   Video,
   FileText,
   PlayCircle,
   AlertCircle,
-  ChevronRight,
+  Eye,
   Calendar,
   RotateCcw
 } from 'lucide-react';
+import OrderDetailModal from './components/OrderDetailModal';
 
 interface ActiveOrdersProps {
   onStartAnalysis: (order: Order) => void;
@@ -20,6 +20,7 @@ interface ActiveOrdersProps {
 const ActiveOrders: React.FC<ActiveOrdersProps> = ({ onStartAnalysis }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     loadActiveOrders();
@@ -136,6 +137,12 @@ const ActiveOrders: React.FC<ActiveOrdersProps> = ({ onStartAnalysis }) => {
                           即将截止
                         </span>
                       )}
+                      {order.report_id && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700">
+                          <FileText className="w-3 h-3 mr-1" />
+                          报告待审核
+                        </span>
+                      )}
                     </div>
                     
                     <div className="flex items-center gap-6 flex-wrap">
@@ -175,6 +182,13 @@ const ActiveOrders: React.FC<ActiveOrdersProps> = ({ onStartAnalysis }) => {
                       </p>
                     </div>
                     <button
+                      onClick={() => setSelectedOrder(order)}
+                      className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition-colors"
+                    >
+                      <Eye className="w-4 h-4" />
+                      详情
+                    </button>
+                    <button
                       onClick={() => onStartAnalysis(order)}
                       className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
                     >
@@ -188,6 +202,7 @@ const ActiveOrders: React.FC<ActiveOrdersProps> = ({ onStartAnalysis }) => {
           })}
         </div>
       )}
+      <OrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
     </div>
   );
 };

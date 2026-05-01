@@ -8,11 +8,11 @@ import {
   Video,
   FileText,
   CheckCircle,
-  XCircle,
-  ChevronRight,
+  Eye,
   Calendar,
   AlertCircle
 } from 'lucide-react';
+import OrderDetailModal from './components/OrderDetailModal';
 
 interface PendingOrdersProps {
   onAccept: () => void;
@@ -24,6 +24,7 @@ const PendingOrders: React.FC<PendingOrdersProps> = ({ onAccept }) => {
   const [processingId, setProcessingId] = useState<number | null>(null);
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     loadPendingOrders();
@@ -234,6 +235,13 @@ const PendingOrders: React.FC<PendingOrdersProps> = ({ onAccept }) => {
                     ) : (
                       <div className="flex items-center gap-2">
                         <button
+                          onClick={() => setSelectedOrder(order)}
+                          className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition-colors"
+                        >
+                          <Eye className="w-4 h-4" />
+                          详情
+                        </button>
+                        <button
                           onClick={() => setRejectingId(order.id)}
                           className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors"
                         >
@@ -265,6 +273,7 @@ const PendingOrders: React.FC<PendingOrdersProps> = ({ onAccept }) => {
           </div>
         </>
       )}
+      <OrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
     </div>
   );
 };
