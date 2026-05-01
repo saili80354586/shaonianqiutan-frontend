@@ -21,6 +21,26 @@ const checks = [
     countSql: "select count(*) from notifications where title like '%E2E测试-%' or content like '%E2E测试-%';",
     sampleSql: "select id || ' | user=' || user_id || ' | ' || type || ' | ' || title || ' | ' || replace(coalesce(content, ''), char(10), ' ') from notifications where title like '%E2E测试-%' or content like '%E2E测试-%' order by id desc limit 5;",
   },
+  {
+    label: 'E2E analyst order residue',
+    countSql: "select count(*) from orders where order_no like 'E2E-ANALYST-%' or player_name like 'E2E分析师闭环%';",
+    sampleSql: "select id || ' | ' || order_no || ' | ' || status || ' | ' || player_name from orders where order_no like 'E2E-ANALYST-%' or player_name like 'E2E分析师闭环%' order by id desc limit 5;",
+  },
+  {
+    label: 'E2E analyst report residue',
+    countSql: "select count(*) from reports where player_name like 'E2E分析师闭环%' or content like '%E2E_ANALYST_FLOW%' or summary like '%E2E_ANALYST_FLOW%';",
+    sampleSql: "select id || ' | order=' || order_id || ' | ' || status || ' | ' || player_name from reports where player_name like 'E2E分析师闭环%' or content like '%E2E_ANALYST_FLOW%' or summary like '%E2E_ANALYST_FLOW%' order by id desc limit 5;",
+  },
+  {
+    label: 'E2E analyst analysis residue',
+    countSql: "select count(*) from video_analyses where player_name like 'E2E分析师闭环%' or ai_report like '%E2E_ANALYST_FLOW%' or summary like '%E2E_ANALYST_FLOW%';",
+    sampleSql: "select id || ' | order=' || order_id || ' | ' || status || ' | ' || player_name from video_analyses where player_name like 'E2E分析师闭环%' or ai_report like '%E2E_ANALYST_FLOW%' or summary like '%E2E_ANALYST_FLOW%' order by id desc limit 5;",
+  },
+  {
+    label: 'E2E analyst notification residue',
+    countSql: "select count(*) from notifications where title like '%E2E_ANALYST_FLOW%' or content like '%E2E_ANALYST_FLOW%' or data like '%E2E_ANALYST_FLOW%' or title like '%E2E分析师闭环%' or content like '%E2E分析师闭环%' or data like '%E2E分析师闭环%';",
+    sampleSql: "select id || ' | user=' || user_id || ' | ' || type || ' | ' || title || ' | ' || replace(coalesce(content, ''), char(10), ' ') from notifications where title like '%E2E_ANALYST_FLOW%' or content like '%E2E_ANALYST_FLOW%' or data like '%E2E_ANALYST_FLOW%' or title like '%E2E分析师闭环%' or content like '%E2E分析师闭环%' or data like '%E2E分析师闭环%' order by id desc limit 5;",
+  },
 ];
 
 function runSql(sql) {
@@ -54,4 +74,4 @@ if (hasResidue) {
   process.exit(1);
 }
 
-console.log('[e2e-residue] ok: no E2E match or notification residue.');
+console.log('[e2e-residue] ok: no tracked E2E residue.');
