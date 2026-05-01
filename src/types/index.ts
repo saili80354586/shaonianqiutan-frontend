@@ -687,7 +687,7 @@ export type HighlightTagType = 'goal' | 'assist' | 'steal' | 'save' | 'dribble' 
 export type VideoAnalysisStatus = 'scoring' | 'draft' | 'generating' | 'completed' | 'submitted';
 
 // AI报告状态
-export type AIReportStatus = 'draft' | 'regenerating' | 'confirmed';
+export type AIReportStatus = 'generating' | 'draft' | 'regenerating' | 'confirmed' | 'failed';
 
 // 单项评分
 export interface RatingDimension {

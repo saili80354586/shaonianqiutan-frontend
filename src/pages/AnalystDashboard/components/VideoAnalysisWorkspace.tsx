@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { videoAnalysisApi } from '../../../services/api';
 import type { 
@@ -294,6 +294,22 @@ interface Props {
   onCancel: () => void;
 }
 
+type AIReportPayload = {
+  report?: string;
+  status?: unknown;
+  version?: number;
+};
+
+type AIReportStatusValue = NonNullable<VideoAnalysis['ai_report_status']>;
+
+const AI_REPORT_STATUSES: AIReportStatusValue[] = ['generating', 'draft', 'regenerating', 'confirmed', 'failed'];
+
+const toAIReportStatus = (value: unknown): AIReportStatusValue | '' => {
+  return typeof value === 'string' && AI_REPORT_STATUSES.includes(value as AIReportStatusValue)
+    ? value as AIReportStatusValue
+    : '';
+};
+
 const VideoAnalysisWorkspace: React.FC<Props> = ({ order, onComplete, onCancel }) => {
   const [analysis, setAnalysis] = useState<VideoAnalysis | null>(null);
   const [scores, setScores] = useState<VideoAnalysisScores>(createDefaultScores());
@@ -304,7 +320,7 @@ const VideoAnalysisWorkspace: React.FC<Props> = ({ order, onComplete, onCancel }
   const [trainingAdvice, setTrainingAdvice] = useState('');
   const [analystNotes, setAnalystNotes] = useState('');
   const [aiReport, setAiReport] = useState('');
-  const [aiReportStatus, setAiReportStatus] = useState<string>('');
+  const [aiReportStatus, setAiReportStatus] = useState<AIReportStatusValue | ''>('');
   
   const [activeTab, setActiveTab] = useState<'overall' | 'offense' | 'defense' | 'summary' | 'highlights' | 'ai-report'>('overall');
   const [saving, setSaving] = useState(false);
@@ -320,6 +336,7 @@ const VideoAnalysisWorkspace: React.FC<Props> = ({ order, onComplete, onCancel }
   const [isMuted, setIsMuted] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
+  const aiReportPollTimerRef = useRef<number | null>(null);
 
   // 高光标记弹窗
   const [showHighlightModal, setShowHighlightModal] = useState(false);
@@ -332,6 +349,60 @@ const VideoAnalysisWorkspace: React.FC<Props> = ({ order, onComplete, onCancel }
 
   const overallScore = calculateOverallScore(scores);
   const potentialGrade = getPotentialGrade(overallScore);
+
+  const clearAIReportPolling = useCallback(() => {
+    if (aiReportPollTimerRef.current !== null) {
+      window.clearTimeout(aiReportPollTimerRef.current);
+      aiReportPollTimerRef.current = null;
+    }
+  }, []);
+
+  const pollAIReport = useCallback(async (analysisId: number, attempt = 0) => {
+    if (attempt >= 60) {
+      setGenerating(false);
+      toast.error('AI报告仍在生成，请稍后刷新查看', { id: 'generate-ai' });
+      return;
+    }
+
+    try {
+      const res = await videoAnalysisApi.getAIReport(analysisId);
+      const payload = (res.data?.data || {}) as AIReportPayload;
+      const status = toAIReportStatus(payload.status);
+      const report = payload.report || '';
+
+      if (status) setAiReportStatus(status);
+      if (report) {
+        setAiReport(report);
+        setAnalysis(prev => prev ? {
+          ...prev,
+          ai_report: report,
+          ai_report_status: status || prev.ai_report_status,
+          ai_report_version: payload.version ?? prev.ai_report_version,
+        } : prev);
+      }
+
+      if (status === 'draft' && report) {
+        clearAIReportPolling();
+        setGenerating(false);
+        toast.success('AI报告已生成，可继续编辑后提交审核', { id: 'generate-ai' });
+        return;
+      }
+
+      if (status === 'failed') {
+        clearAIReportPolling();
+        setGenerating(false);
+        toast.error('AI报告生成失败，请重试', { id: 'generate-ai' });
+        return;
+      }
+    } catch (error) {
+      console.error('轮询AI报告失败', error);
+    }
+
+    clearAIReportPolling();
+    aiReportPollTimerRef.current = window.setTimeout(() => {
+      void pollAIReport(analysisId, attempt + 1);
+    }, 5000);
+  }, [clearAIReportPolling]);
 
   // ─── 初始化 ────────────────────────────────────────
   useEffect(() => {
@@ -357,6 +428,10 @@ const VideoAnalysisWorkspace: React.FC<Props> = ({ order, onComplete, onCancel }
           if (existingAnalysis.analyst_notes) setAnalystNotes(existingAnalysis.analyst_notes);
           if (existingAnalysis.ai_report) setAiReport(existingAnalysis.ai_report);
           if (existingAnalysis.ai_report_status) setAiReportStatus(existingAnalysis.ai_report_status);
+          if (existingAnalysis.ai_report_status === 'generating' || existingAnalysis.ai_report_status === 'regenerating') {
+            setGenerating(true);
+            void pollAIReport(existingAnalysis.id);
+          }
           setHighlights(res.data.data.highlights || []);
         } else {
           const createRes = await videoAnalysisApi.createFromOrder(order.id);
@@ -369,7 +444,11 @@ const VideoAnalysisWorkspace: React.FC<Props> = ({ order, onComplete, onCancel }
       }
     };
     initAnalysis();
-  }, [order.id]);
+  }, [order.id, pollAIReport]);
+
+  useEffect(() => {
+    return () => clearAIReportPolling();
+  }, [clearAIReportPolling]);
 
   // 3秒防抖自动保存
   useEffect(() => {
@@ -482,17 +561,16 @@ const VideoAnalysisWorkspace: React.FC<Props> = ({ order, onComplete, onCancel }
     setAiReportStatus('generating');
     try {
       await videoAnalysisApi.generateAIReport(analysis.id);
-      toast.success('AI报告生成任务已提交，预计需要3-5分钟', {
+      toast.loading('AI报告生成任务已提交，正在等待结果...', {
         id: 'generate-ai',
-        description: '生成完成后您可在此页面查看，也可前往球员端「我的分析报告」查看',
-        duration: 6000,
+        description: '生成完成后会自动显示在当前页面',
       });
+      void pollAIReport(analysis.id);
     } catch (error: any) {
       setAiReportStatus('');
+      setGenerating(false);
       const msg = error?.response?.data?.message || 'AI生成提交失败，请重试';
       toast.error(msg, { id: 'generate-ai' });
-    } finally {
-      setGenerating(false);
     }
   };
 
@@ -530,7 +608,7 @@ const VideoAnalysisWorkspace: React.FC<Props> = ({ order, onComplete, onCancel }
     toast.loading('正在提交报告...', { id: 'submit-report' });
     try {
       await videoAnalysisApi.confirmAIReport(analysis.id);
-      toast.success('报告提交成功', { id: 'submit-report' });
+      toast.success('报告已提交审核', { id: 'submit-report' });
       onComplete();
     } catch (error: any) {
       const msg = error?.response?.data?.message || '提交失败';
@@ -1115,7 +1193,7 @@ const VideoAnalysisWorkspace: React.FC<Props> = ({ order, onComplete, onCancel }
                           <Sparkles className="absolute w-4 h-4 text-purple-400" />
                         </div>
                         <p className="text-sm text-slate-200 font-medium">AI 正在深度分析中...</p>
-                        <p className="text-xs text-slate-400 mt-1">预计需要 3-5 分钟，生成完成后可刷新查看</p>
+                        <p className="text-xs text-slate-400 mt-1">预计需要 3-5 分钟，生成完成后会自动显示</p>
                         <div className="flex justify-center gap-1.5 mt-4">
                           {[0, 1, 2].map(i => (
                             <motion.div
