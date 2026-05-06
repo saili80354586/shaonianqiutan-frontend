@@ -234,7 +234,7 @@ const waitForAnalysisId = async (request: APIRequestContext, auth: LoginData, or
 test.describe('分析师报告写路径 - 受控数据回归', () => {
   test.describe.configure({ mode: 'serial' });
 
-  test.afterEach(async ({}, testInfo) => {
+  test.afterEach(async ({ page: _page }, testInfo) => {
     const orderNo = testInfo.annotations.find(item => item.type === 'order-no')?.description;
     cleanupAnalystFlowResidue(orderNo);
   });

@@ -130,6 +130,23 @@ export async function downloadBlob(
     params: options.params,
     responseType: 'blob',
   });
+  triggerBlobDownload(response, options.filename);
+  return response;
+}
+
+export async function downloadBlobPost(
+  path: string,
+  data?: any,
+  options: { filename?: string } = {}
+) {
+  const response = await http.post(path, data || {}, {
+    responseType: 'blob',
+  });
+  triggerBlobDownload(response, options.filename);
+  return response;
+}
+
+function triggerBlobDownload(response: any, fallbackFilename?: string) {
   const contentType = response.headers?.['content-type'] || 'application/octet-stream';
   const blob = response.data instanceof Blob
     ? response.data
@@ -137,13 +154,12 @@ export async function downloadBlob(
   const url = window.URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
-  const filename = getFilenameFromContentDisposition(response.headers?.['content-disposition']) || options.filename;
+  const filename = getFilenameFromContentDisposition(response.headers?.['content-disposition']) || fallbackFilename;
   if (filename) anchor.download = filename;
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
   window.URL.revokeObjectURL(url);
-  return response;
 }
 
 // ========== Auth API ==========
@@ -307,6 +323,30 @@ export const videoAnalysisApi = {
   // 获取高光列表
   getHighlights: (analysisId: number) => 
     http.get(`/video-analysis/${analysisId}/highlights`),
+
+  // 片段剪辑
+  retryHighlightClip: (id: number) =>
+    http.post(`/video-analysis/markers/${id}/clip`),
+  getHighlightClip: (id: number) =>
+    http.get(`/video-analysis/markers/${id}/clip`),
+  downloadHighlightClip: (id: number) =>
+    downloadBlob(`/video-analysis/markers/${id}/clip/download`),
+  exportHighlightClips: (analysisId: number, data?: any) =>
+    downloadBlobPost(`/video-analysis/${analysisId}/clips/export`, data, {
+      filename: `视频片段_${analysisId}.zip`,
+    }),
+  createHighlightClipExportJob: (analysisId: number, data?: any) =>
+    http.post(`/video-analysis/${analysisId}/clips/export/jobs`, data || {}),
+  listHighlightClipExportJobs: (analysisId: number) =>
+    http.get(`/video-analysis/${analysisId}/clips/export/jobs`),
+  getHighlightClipExportJob: (analysisId: number, jobId: string) =>
+    http.get(`/video-analysis/${analysisId}/clips/export/jobs/${jobId}`),
+  retryHighlightClipExportJob: (analysisId: number, jobId: string) =>
+    http.post(`/video-analysis/${analysisId}/clips/export/jobs/${jobId}/retry`),
+  downloadHighlightClipExportJob: (analysisId: number, jobId: string, filename?: string) =>
+    downloadBlob(`/video-analysis/${analysisId}/clips/export/jobs/${jobId}/download`, {
+      filename: filename || `视频片段_${analysisId}.zip`,
+    }),
   
   // AI报告生成
   generateAIReport: (analysisId: number) => 
@@ -399,6 +439,7 @@ export const clubApi = {
   getMatchSchedule: (id: number) => http.get(`/club/match-schedules/${id}`),
   updateMatchSchedule: (id: number, data: any) => http.put(`/club/match-schedules/${id}`, data),
   deleteMatchSchedule: (id: number) => http.delete(`/club/match-schedules/${id}`),
+  createMatchSummaryFromSchedule: (id: number) => http.post(`/club/match-schedules/${id}/summary`, {}),
   invitePlayer: (data: any) => http.post('/club/players/invite', data),
   importPlayers: (file: File) => {
     const formData = new FormData();

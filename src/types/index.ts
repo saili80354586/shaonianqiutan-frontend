@@ -680,8 +680,24 @@ export interface UserStats {
 // 潜力等级
 export type PotentialLevel = 'S' | 'A' | 'B' | 'C' | 'D';
 
-// 高光时刻标签类型
-export type HighlightTagType = 'goal' | 'assist' | 'steal' | 'save' | 'dribble' | 'pass' | 'defense';
+// 关键片段标记
+export type HighlightMarkerType = 'highlight' | 'issue' | 'observation';
+export type HighlightMode = 'point' | 'range';
+export type HighlightClipStatus = 'none' | 'queued' | 'processing' | 'ready' | 'failed';
+export type HighlightTagType =
+  | 'goal'
+  | 'assist'
+  | 'steal'
+  | 'save'
+  | 'dribble'
+  | 'pass'
+  | 'defense'
+  | 'positioning_error'
+  | 'decision_error'
+  | 'turnover'
+  | 'recovery_slow'
+  | 'tactical_note'
+  | 'off_ball_run';
 
 // 视频分析状态
 export type VideoAnalysisStatus = 'scoring' | 'draft' | 'generating' | 'completed' | 'submitted';
@@ -740,17 +756,48 @@ export interface VideoAnalysisScores {
   overall_score?: number;
 }
 
-// 高光时刻
+// 关键片段标记
 export interface AnalysisHighlight {
   id: number;
   analysis_id: number;
   timestamp: string;
+  marker_type?: HighlightMarkerType;
+  mode?: HighlightMode;
+  start_time_ms?: number;
+  end_time_ms?: number | null;
   tag_type: HighlightTagType;
   description: string;
   video_clip_url?: string;
+  clip_status?: HighlightClipStatus;
+  clip_error?: string;
+  clip_version?: number;
+  clip_generated_at?: string | null;
   include_in_report: boolean;
   sort_order: number;
   created_at: string;
+}
+
+export interface ExportHighlightClipsRequest {
+  marker_ids?: number[];
+  marker_type?: HighlightMarkerType;
+  tag_type?: HighlightTagType;
+}
+
+export type HighlightClipExportJobStatus = 'queued' | 'processing' | 'ready' | 'failed';
+
+export interface HighlightClipExportJob {
+  id: string;
+  analysis_id: number;
+  status: HighlightClipExportJobStatus;
+  progress: number;
+  processed: number;
+  total: number;
+  filename: string;
+  error?: string;
+  download_url?: string;
+  created_at: string;
+  updated_at: string;
+  expires_at?: string | null;
 }
 
 // 视频分析
@@ -811,10 +858,14 @@ export interface UpdateScoresRequest {
   analyst_notes: string;
 }
 
-// 创建高光请求
+// 创建关键片段标记请求
 export interface CreateHighlightRequest {
   analysis_id: number;
   timestamp: string;
+  marker_type?: HighlightMarkerType;
+  mode?: HighlightMode;
+  start_time_ms?: number;
+  end_time_ms?: number | null;
   tag_type: HighlightTagType;
   description: string;
   video_clip_url?: string;
