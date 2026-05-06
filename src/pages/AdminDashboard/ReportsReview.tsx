@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { adminApi } from '../../services/api';
 import type { Report } from '../../types';
 import { Loading } from '../../components';
-import { CheckCircle, XCircle, FileText, User, Calendar, Download, FileDown } from 'lucide-react';
+import { CheckCircle, XCircle, FileText, User, Calendar, Download, Eye } from 'lucide-react';
 import AdminConfirmDialog from './components/AdminConfirmDialog';
 
 const ReportsReview: React.FC = () => {
@@ -107,6 +108,12 @@ const ReportsReview: React.FC = () => {
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex gap-2">
+                        <Link
+                          to={`/reports/${report.id}`}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-slate-500/10 hover:bg-slate-500/20 text-slate-300 rounded-lg transition-colors text-sm"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> 查看
+                        </Link>
                         <button
                           onClick={() => handleApprove(report.id)}
                           className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg transition-colors text-sm"
