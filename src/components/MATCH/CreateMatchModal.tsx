@@ -140,13 +140,19 @@ export const CreateMatchModal: React.FC<CreateMatchModalProps> = ({
     try {
       const response = await coachApi.getTeamPlayers(teamId);
       if (response.data.success) {
-        const data = (response.data.data as any[]) || [];
-        setPlayers(data.map((p: any) => ({
-          id: p.id,
-          name: p.name || p.playerName,
-          number: p.number || 0,
-          position: p.position,
-        })));
+        const data = Array.isArray(response.data.data)
+          ? response.data.data
+          : (response.data.data?.list || []);
+        setPlayers(data.map((p: any) => {
+          const playerId = Number(p.userId ?? p.user_id ?? p.playerId ?? p.player_id ?? p.id);
+          const number = Number(p.jerseyNumber ?? p.jersey_number ?? p.number ?? 0);
+          return {
+            id: playerId,
+            name: p.name || p.playerName,
+            number: Number.isFinite(number) ? number : 0,
+            position: p.position,
+          };
+        }).filter((p: PlayerOption) => Number.isFinite(p.id) && p.id > 0));
       }
     } catch (err) {
       console.error('加载球员列表失败:', err);

@@ -380,8 +380,45 @@ export const coachApi = {
   getDashboard: () => api.get('/coach/dashboard'),
 
   // 获取关注的球员列表
-  getFollowedPlayers: (params?: { page?: number; pageSize?: number }) =>
+  getFollowedPlayers: (params?: { page?: number; pageSize?: number; keyword?: string }) =>
     api.get('/coach/followed-players', { params }),
+
+  // 更新关注备注/星标
+  updateFollowNotes: (playerId: number, data: { notes?: string; isStarred?: boolean }) =>
+    api.put(`/coach/followed-players/${playerId}/notes`, data),
+
+  // 获取训练笔记列表
+  getTrainingNotes: (params?: { page?: number; pageSize?: number; playerId?: number; category?: string }) =>
+    api.get('/coach/training-notes', { params }),
+
+  // 创建训练笔记
+  createTrainingNote: (data: {
+    playerId: number;
+    title: string;
+    content: string;
+    category?: string;
+    tags?: string[];
+    rating?: number;
+    isPublic?: boolean;
+  }) => api.post('/coach/training-notes', data),
+
+  // 更新训练笔记
+  updateTrainingNote: (id: number, data: {
+    title?: string;
+    content?: string;
+    category?: string;
+    tags?: string[];
+    rating?: number;
+    isPublic?: boolean;
+  }) => api.put(`/coach/training-notes/${id}`, data),
+
+  // 删除训练笔记
+  deleteTrainingNote: (id: number) =>
+    api.delete(`/coach/training-notes/${id}`),
+
+  // 获取球员进度
+  getPlayerProgress: (playerId: number) =>
+    api.get(`/coach/players/${playerId}/progress`),
 
   // 获取我的球队列表
   getMyTeams: () =>
@@ -602,6 +639,18 @@ export const coachApi = {
   // 删除体测活动
   deleteTeamPhysicalTest: (teamId: number, testId: number) =>
     api.delete(`/teams/${teamId}/physical-tests/${testId}`),
+
+  // 获取球队体测自定义模板
+  getTeamPhysicalTestTemplates: (teamId: number) =>
+    api.get(`/teams/${teamId}/physical-tests/templates`),
+
+  // 创建球队体测自定义模板
+  createTeamPhysicalTestTemplate: (teamId: number, data: { name: string; description?: string; items: string[] }) =>
+    api.post(`/teams/${teamId}/physical-tests/templates`, data),
+
+  // 删除球队体测自定义模板
+  deleteTeamPhysicalTestTemplate: (teamId: number, templateId: number) =>
+    api.delete(`/teams/${teamId}/physical-tests/templates/${templateId}`),
 
   // 获取体测数据
   getTeamPhysicalTestRecords: (teamId: number, testId: number, params?: { playerId?: number }) =>

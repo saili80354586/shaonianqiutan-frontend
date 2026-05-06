@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Search, Filter, Star, Heart, Eye, FileText, ChevronRight, MoreVertical, X } from 'lucide-react';
+import { coachApi } from '../../services/club';
 
 interface Player {
   id: string;
@@ -15,15 +16,32 @@ interface Player {
   technicalScore: number;
   physicalScore: number;
   tacticalScore: number;
+  notes?: string;
 }
 
 interface FollowedPlayersProps {
   onBack: () => void;
 }
 
+const normalizeList = (data: any): any[] => {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.list)) return data.list;
+  return [];
+};
+
+const toNumber = (value: unknown): number => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+};
+
+const normalizeGender = (gender: unknown): 'male' | 'female' => {
+  return gender === 'female' || gender === '女' ? 'female' : 'male';
+};
+
 const FollowedPlayers: React.FC<FollowedPlayersProps> = ({ onBack }) => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState('all');
   const [showOnlyStarred, setShowOnlyStarred] = useState(false);
@@ -35,19 +53,54 @@ const FollowedPlayers: React.FC<FollowedPlayersProps> = ({ onBack }) => {
 
   const loadPlayers = async () => {
     setLoading(true);
-    await new Promise(r => setTimeout(r, 600));
-    setPlayers([
-      { id: '1', name: '李明', age: 14, gender: 'male', position: '前锋', clubName: '星耀FC', reportCount: 5, lastReportDate: '2025-03-20', overallRating: 85, isStarred: true, technicalScore: 88, physicalScore: 82, tacticalScore: 80 },
-      { id: '2', name: '王强', age: 13, gender: 'male', position: '中场', clubName: '星耀FC', reportCount: 3, lastReportDate: '2025-03-18', overallRating: 78, isStarred: false, technicalScore: 80, physicalScore: 75, tacticalScore: 76 },
-      { id: '3', name: '张浩', age: 15, gender: 'male', position: '后卫', clubName: '明日之星', reportCount: 6, lastReportDate: '2025-03-15', overallRating: 82, isStarred: true, technicalScore: 78, physicalScore: 85, tacticalScore: 84 },
-      { id: '4', name: '刘洋', age: 14, gender: 'male', position: '门将', clubName: '绿茵少年', reportCount: 2, lastReportDate: '2025-03-10', overallRating: 75, isStarred: false, technicalScore: 72, physicalScore: 78, tacticalScore: 74 },
-      { id: '5', name: '陈伟', age: 13, gender: 'male', position: '前锋', clubName: '星耀FC', reportCount: 4, lastReportDate: '2025-03-08', overallRating: 80, isStarred: false, technicalScore: 84, physicalScore: 76, tacticalScore: 78 },
-    ]);
-    setLoading(false);
+    setError('');
+    try {
+      const response = await coachApi.getFollowedPlayers({ page: 1, pageSize: 100 });
+      const list = normalizeList(response.data?.data);
+      const mapped = list.map((p: any) => ({
+        id: String(p.userId ?? p.user_id ?? p.id),
+        name: p.name || p.playerName || '未命名球员',
+        age: toNumber(p.age),
+        gender: normalizeGender(p.gender),
+        position: p.positionName || p.position || '未设置',
+        clubName: p.clubName || p.club_name || p.club || '未知俱乐部',
+        reportCount: toNumber(p.reportCount ?? p.report_count),
+        lastReportDate: p.lastReportDate ?? p.last_report_date ?? undefined,
+        overallRating: toNumber(p.overallRating ?? p.overall_rating),
+        isStarred: Boolean(p.isStarred ?? p.is_starred),
+        technicalScore: toNumber(p.technicalScore ?? p.technical_score),
+        physicalScore: toNumber(p.physicalScore ?? p.physical_score),
+        tacticalScore: toNumber(p.tacticalScore ?? p.tactical_score),
+        notes: p.notes || '',
+      }));
+      setPlayers(mapped.filter(p => p.id && p.id !== 'undefined' && p.id !== 'null'));
+    } catch (err) {
+      console.error('加载关注球员失败:', err);
+      setError('关注球员加载失败，请稍后重试');
+      setPlayers([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const toggleStar = (playerId: string) => {
-    setPlayers(players.map(p => p.id === playerId ? { ...p, isStarred: !p.isStarred } : p));
+  const toggleStar = async (playerId: string) => {
+    const player = players.find(p => p.id === playerId);
+    if (!player) return;
+
+    const nextStarred = !player.isStarred;
+    setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, isStarred: nextStarred } : p));
+    setError('');
+
+    try {
+      await coachApi.updateFollowNotes(Number(playerId), {
+        notes: player.notes || '',
+        isStarred: nextStarred,
+      });
+    } catch (err) {
+      console.error('更新关注星标失败:', err);
+      setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, isStarred: player.isStarred } : p));
+      setError('星标更新失败，请稍后重试');
+    }
   };
 
   const filteredPlayers = players.filter(p => {
@@ -117,6 +170,7 @@ const FollowedPlayers: React.FC<FollowedPlayersProps> = ({ onBack }) => {
             <Star className={`w-4 h-4 ${showOnlyStarred ? 'fill-amber-400' : ''}`} /> 只看星标
           </button>
         </div>
+        {error && <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-sm text-red-300">{error}</div>}
 
         {/* 球员网格 */}
         {loading ? (

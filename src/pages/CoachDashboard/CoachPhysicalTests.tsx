@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Plus, Calendar, MapPin, Users, CheckCircle, ChevronRight, Loader2, Download, BarChart3, Check, X, Trash2, HelpCircle } from 'lucide-react';
-import { physicalTestApi, coachApi, teamApi } from '../../services/club';
+import { coachApi, teamApi } from '../../services/club';
 import PhysicalTestRecord from '../ClubDashboard/PhysicalTestRecord';
 import { ListItemSkeleton } from '../../components/ui/loading';
 import { PhysicalTestTooltip } from '../../components/ui/PhysicalTestTooltip';
@@ -158,6 +158,11 @@ function DetailView({ test, teamId, onBack, onRecord }: { test: any; teamId: num
   );
 }
 
+const getPlayerUserId = (player: any): number => {
+  const playerId = Number(player.userId ?? player.user_id ?? player.playerId ?? player.player_id ?? player.id);
+  return Number.isFinite(playerId) ? playerId : 0;
+};
+
 function CreateView({ teamId, teamName, onBack, onSuccess }: { teamId: number; teamName: string; onBack: () => void; onSuccess: () => void }) {
   const [form, setForm] = useState({ name: '', description: '', startDate: '', endDate: '', location: '', template: 'advanced', customTemplateId: 0 });
   const [loading, setLoading] = useState(false);
@@ -171,8 +176,21 @@ function CreateView({ teamId, teamName, onBack, onSuccess }: { teamId: number; t
   const [customSaving, setCustomSaving] = useState(false);
 
   useEffect(() => { loadCustomTemplates(); loadPlayers(); }, []);
-  const loadCustomTemplates = async () => { try { const res = await physicalTestApi.getCustomTemplates(); if (res.data?.success) setCustomTemplates(res.data.data.list || []); } catch (e) {} };
-  const loadPlayers = async () => { try { const res = await teamApi.getTeamPlayers(teamId); if (res.data?.success) { const list = res.data.data.list || res.data.data || []; setPlayers(list); setSelectedPlayerIds(list.map((p: any) => p.id)); } } catch (e) {} };
+  const loadCustomTemplates = async () => { try { const res = await coachApi.getTeamPhysicalTestTemplates(teamId); if (res.data?.success) setCustomTemplates(res.data.data.list || []); } catch (e) {} };
+  const loadPlayers = async () => {
+    try {
+      const res = await teamApi.getTeamPlayers(teamId);
+      if (res.data?.success) {
+        const data = res.data.data;
+        const list = Array.isArray(data) ? data : (data?.list || []);
+        const mapped = list
+          .map((p: any) => ({ ...p, userId: getPlayerUserId(p) }))
+          .filter((p: any) => p.userId > 0);
+        setPlayers(mapped);
+        setSelectedPlayerIds(mapped.map((p: any) => p.userId));
+      }
+    } catch (e) {}
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -194,7 +212,7 @@ function CreateView({ teamId, teamName, onBack, onSuccess }: { teamId: number; t
     if (selectedItems.length === 0) { setError('请至少选择一个测试项目'); return; }
     setCustomSaving(true); setError('');
     try {
-      const res = await physicalTestApi.createCustomTemplate({ name: customForm.name, description: customForm.description, items: selectedItems });
+      const res = await coachApi.createTeamPhysicalTestTemplate(teamId, { name: customForm.name, description: customForm.description, items: selectedItems });
       if (res.data?.success) { await loadCustomTemplates(); setShowCustomModal(false); setCustomForm({ name: '', description: '' }); setSelectedItems([]); } else setError(res.data?.error?.message || '保存失败');
     } catch (err: any) { setError(err.message || '保存失败'); }
     setCustomSaving(false);
@@ -203,7 +221,7 @@ function CreateView({ teamId, teamName, onBack, onSuccess }: { teamId: number; t
   const handleDeleteCustom = async (ev: React.MouseEvent, id: number) => {
     ev.stopPropagation();
     if (!confirm('确定删除该自定义模板吗？')) return;
-    try { await physicalTestApi.deleteCustomTemplate(id); await loadCustomTemplates(); if (form.customTemplateId === id) setForm(f => ({ ...f, template: 'advanced', customTemplateId: 0 })); } catch (e) {}
+    try { await coachApi.deleteTeamPhysicalTestTemplate(teamId, id); await loadCustomTemplates(); if (form.customTemplateId === id) setForm(f => ({ ...f, template: 'advanced', customTemplateId: 0 })); } catch (e) {}
   };
 
   const displayed = [...BUILTIN_TEMPLATES.map(t => ({ ...t, isCustom: false, customId: 0 })), ...customTemplates.map(t => ({ id: `custom-${t.id}`, name: t.name, description: t.description || '自定义模板', items: t.items.map((k: string) => ALL_TEST_ITEMS.find(i => i.key === k)?.name || k), color: 'purple', isCustom: true, customId: t.id }))];
@@ -250,9 +268,10 @@ function CreateView({ teamId, teamName, onBack, onSuccess }: { teamId: number; t
             {players.length === 0 ? <p className="text-gray-400">加载球员中...</p> : (
               <div className="flex flex-wrap gap-2">
                 {players.map((p: any) => {
-                  const selected = selectedPlayerIds.includes(p.id);
+                  const playerId = getPlayerUserId(p);
+                  const selected = selectedPlayerIds.includes(playerId);
                   return (
-                    <button key={p.id} type="button" onClick={() => setSelectedPlayerIds(prev => prev.includes(p.id) ? prev.filter(id => id !== p.id) : [...prev, p.id])} className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${selected ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-[#0f1419] border-gray-700 text-gray-300 hover:border-gray-500'}`}>{p.name}</button>
+                    <button key={p.id ?? playerId} type="button" onClick={() => setSelectedPlayerIds(prev => prev.includes(playerId) ? prev.filter(id => id !== playerId) : [...prev, playerId])} className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${selected ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-[#0f1419] border-gray-700 text-gray-300 hover:border-gray-500'}`}>{p.name}</button>
                   );
                 })}
               </div>
