@@ -107,6 +107,18 @@ interface ClubInvitation {
 
 type ActiveTab = 'overview' | 'players' | 'notes' | 'progress' | 'teams' | 'physical-tests' | 'weekly-reports' | 'match-reports' | 'profile';
 
+const parseStringArray = (value?: string | string[]) => {
+  let parsed: unknown = value;
+  for (let i = 0; i < 2 && typeof parsed === 'string'; i += 1) {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      break;
+    }
+  }
+  return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
+};
+
 const CoachDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -139,15 +151,17 @@ const CoachDashboard: React.FC = () => {
       const profileRes = await coachApi.getProfile();
       if (profileRes.data?.success && profileRes.data?.data) {
         const p = profileRes.data.data;
+        const coach = p.coach || {};
+        const profileUser = p.user || p.User || coach.user || coach.User || user || {};
         setCoachInfo({
-          id: String(p.id),
-          name: p.name || '教练',
-          avatar: p.avatar,
-          licenseType: p.licenseType,
-          licenseNumber: p.licenseNumber,
-          coachingYears: p.coachingYears,
-          specialties: p.specialties || [],
-          verified: p.verified
+          id: String(coach.id || profileUser.id || ''),
+          name: profileUser.name || profileUser.nickname || '教练',
+          avatar: profileUser.avatar,
+          licenseType: coach.license_type || coach.licenseType || '',
+          licenseNumber: coach.license_number || coach.licenseNumber || '',
+          coachingYears: coach.coaching_years || coach.coachingYears || 0,
+          specialties: parseStringArray(coach.specialties),
+          verified: Boolean(coach.verified)
         });
       }
       const dashboardRes = await coachApi.getDashboard();

@@ -12,8 +12,8 @@ interface CoachTeamDetailProps {
  * 直接使用 ClubDashboard 的 TeamDetail 组件
  * 因为 API 已经统一 (/api/teams/:teamId/*)，支持俱乐部和教练访问
  *
- * 教练拥有球队完整管理权限（isAdmin=true）
- * 包括：球队设置、邀请球员、编辑球员、管理教练组、发起周报/比赛等
+ * 教练拥有球队管理权限（isAdmin=true）
+ * 但教练组增删改仍仅限俱乐部管理员，避免展示后端会拒绝的入口
  */
 const CoachTeamDetail: React.FC<CoachTeamDetailProps> = ({ teamId, onBack }) => {
   const [viewingPlayerId, setViewingPlayerId] = useState<number | null>(null);
@@ -23,7 +23,16 @@ const CoachTeamDetail: React.FC<CoachTeamDetailProps> = ({ teamId, onBack }) => 
     return <PlayerDetail playerId={viewingPlayerId} onBack={() => setViewingPlayerId(null)} />;
   }
 
-  return <TeamDetail teamId={teamId} onBack={onBack} isAdmin={true} onViewDetail={(id) => setViewingPlayerId(id)} />;
+  return (
+    <TeamDetail
+      teamId={teamId}
+      onBack={onBack}
+      isAdmin={true}
+      canManageCoaches={false}
+      showCoachSwitchHint={false}
+      onViewDetail={(id) => setViewingPlayerId(id)}
+    />
+  );
 };
 
 export default CoachTeamDetail;

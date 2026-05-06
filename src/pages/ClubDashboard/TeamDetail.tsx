@@ -28,6 +28,8 @@ interface TeamDetailProps {
   teamId: number;
   onBack: () => void;
   isAdmin?: boolean;
+  canManageCoaches?: boolean;
+  showCoachSwitchHint?: boolean;
   onViewDetail?: (playerId: number) => void;
 }
 
@@ -52,7 +54,14 @@ interface SeasonArchiveItem {
   testCount?: number;
 }
 
-const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, isAdmin = true, onViewDetail }) => {
+const TeamDetail: React.FC<TeamDetailProps> = ({
+  teamId,
+  onBack,
+  isAdmin = true,
+  canManageCoaches = isAdmin,
+  showCoachSwitchHint = isAdmin,
+  onViewDetail,
+}) => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const isAlsoCoach = user?.role === 'coach' || user?.roles?.some(role => role.type === 'coach');
@@ -294,7 +303,7 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, isAdmin = true,
     <div className="min-h-screen bg-[#0f1419]">
       <div className="p-8">
         {/* 教练身份切换提示（仅管理员视角下显示） */}
-        {isAdmin && isAlsoCoach && (
+        {showCoachSwitchHint && isAlsoCoach && (
           <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Shield className="w-5 h-5 text-blue-400" />
@@ -563,7 +572,7 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, isAdmin = true,
         {/* 教练Tab内容 */}
         {activeTab === 'coaches' && (
           <>
-          {isAdmin && (
+          {canManageCoaches && (
             <div className="mb-6">
               <button
                 onClick={() => setShowCoachModal(true)}
@@ -628,7 +637,7 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, isAdmin = true,
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-2">
-                          {isAdmin ? (
+                          {canManageCoaches ? (
                             <>
                               <select
                                 value={coach.role}
@@ -1066,7 +1075,7 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, isAdmin = true,
       )}
 
       {/* 教练管理弹窗 */}
-      {showCoachModal && (
+      {showCoachModal && canManageCoaches && (
         <CoachModal
           teamId={teamId}
           teamName={team?.name || ''}

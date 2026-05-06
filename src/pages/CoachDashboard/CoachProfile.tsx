@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, Save, Edit3, Shield, Clock, MapPin, Award, User as UserIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { coachApi } from '../../services/club';
+import { useAuthStore } from '../../store';
 
 // 教练位置选项
 const positionOptions = [
@@ -19,32 +20,99 @@ const positionOptions = [
 
 // 执照等级选项
 const licenseTypeOptions = [
-  { value: 'pro', label: '职业级' },
-  { value: 'a', label: 'A级' },
-  { value: 'b', label: 'B级' },
-  { value: 'c', label: 'C级' },
-  { value: 'd', label: 'D级' },
-  { value: 'other', label: '其他' },
-  { value: 'none', label: '暂无' },
+  { value: '职业级', label: '职业级' },
+  { value: 'A级', label: 'A级' },
+  { value: 'B级', label: 'B级' },
+  { value: 'C级', label: 'C级' },
+  { value: 'D级', label: 'D级' },
+  { value: 'E级', label: 'E级' },
+  { value: 'UEFA', label: 'UEFA' },
+  { value: '其他', label: '其他' },
+  { value: '暂无', label: '暂无' },
 ];
 
 // 专长选项
 const specialtyOptions = [
-  { value: 'gk', label: '门将训练' },
-  { value: 'defense', label: '防守训练' },
-  { value: 'midfield', label: '中场组织' },
-  { value: 'attack', label: '进攻训练' },
-  { value: 'fitness', label: '体能训练' },
-  { value: 'tactical', label: '战术分析' },
-  { value: 'youth', label: '青训培养' },
-  { value: 'psychology', label: '心理辅导' },
+  { value: '门将训练', label: '门将训练' },
+  { value: '防守训练', label: '防守训练' },
+  { value: '中场组织', label: '中场组织' },
+  { value: '进攻训练', label: '进攻训练' },
+  { value: '技术训练', label: '技术训练' },
+  { value: '体能训练', label: '体能训练' },
+  { value: '战术分析', label: '战术分析' },
+  { value: '比赛阅读', label: '比赛阅读' },
+  { value: '青少年培养', label: '青少年培养' },
+  { value: '青训培养', label: '青训培养' },
+  { value: '心理辅导', label: '心理辅导' },
 ];
 
 interface CoachProfileProps {
   onBack?: () => void;
 }
 
+interface UserProfilePayload {
+  id?: number;
+  name?: string;
+  nickname?: string;
+  avatar?: string;
+  position?: string;
+  province?: string;
+  city?: string;
+}
+
+interface CoachProfilePayload {
+  id?: number;
+  user?: UserProfilePayload;
+  User?: UserProfilePayload;
+  license_type?: string;
+  licenseType?: string;
+  license_number?: string;
+  licenseNumber?: string;
+  specialties?: string | string[];
+  bio?: string;
+  coaching_years?: number;
+  coachingYears?: number;
+  current_club?: string;
+  currentClub?: string;
+  city?: string;
+  verified?: boolean;
+}
+
+interface CoachProfileResponse {
+  coach?: CoachProfilePayload;
+  user?: UserProfilePayload;
+  User?: UserProfilePayload;
+  position?: string;
+}
+
+const normalizeLicenseType = (value?: string) => {
+  const map: Record<string, string> = {
+    pro: '职业级',
+    a: 'A级',
+    b: 'B级',
+    c: 'C级',
+    d: 'D级',
+    e: 'E级',
+    other: '其他',
+    none: '暂无',
+  };
+  return value ? (map[value] || value) : '';
+};
+
+const parseStringArray = (value?: string | string[]) => {
+  let parsed: unknown = value;
+  for (let i = 0; i < 2 && typeof parsed === 'string'; i += 1) {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      break;
+    }
+  }
+  return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
+};
+
 const CoachProfile: React.FC<CoachProfileProps> = ({ onBack = () => window.history.back() }) => {
+  const { user: currentUser } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -70,33 +138,30 @@ const CoachProfile: React.FC<CoachProfileProps> = ({ onBack = () => window.histo
       setLoading(true);
       const res = await coachApi.getProfile();
       if (res.data?.success && res.data?.data) {
-        const d = res.data.data;
-        setAvatar(d.User?.avatar || '');
-        setName(d.User?.name || '');
-        setPosition(d.User?.position || d.licenseType || '');
-        setProvince(d.User?.province || '');
-        setCity(d.User?.city || '');
-        setLicenseType(d.licenseType || '');
-        setLicenseNumber(d.licenseNumber || '');
-        // coachingYears 处理
-        if (d.coachingYears) {
-          const years = Number(d.coachingYears);
-          if (years >= 10) setCoachingYears('10+');
-          else if (years >= 5) setCoachingYears('5-10');
-          else if (years >= 2) setCoachingYears('2-5');
-          else setCoachingYears('0-2');
-        }
-        setSpecialties(typeof d.specialties === 'string' ? JSON.parse(d.specialties || '[]') : (d.specialties || []));
-        setBio(d.bio || '');
-        setCurrentClub(d.currentClub || '');
-        setVerified(d.verified || false);
+        const d = res.data.data as CoachProfileResponse;
+        const coach = d.coach || {};
+        const user = d.user || d.User || coach.user || coach.User || currentUser || {};
+        const years = coach.coaching_years ?? coach.coachingYears;
+
+        setAvatar(user.avatar || '');
+        setName(user.name || user.nickname || '');
+        setPosition(d.position || user.position || '');
+        setProvince(user.province || '');
+        setCity(coach.city || user.city || '');
+        setLicenseType(normalizeLicenseType(coach.license_type || coach.licenseType));
+        setLicenseNumber(coach.license_number || coach.licenseNumber || '');
+        setCoachingYears(years ? String(years) : '');
+        setSpecialties(parseStringArray(coach.specialties));
+        setBio(coach.bio || '');
+        setCurrentClub(coach.current_club || coach.currentClub || '');
+        setVerified(Boolean(coach.verified));
       }
     } catch {
       toast.error('加载资料失败');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => { loadProfile(); }, [loadProfile]);
 
@@ -235,7 +300,7 @@ const CoachProfile: React.FC<CoachProfileProps> = ({ onBack = () => window.histo
               ) : (
                 <div className="text-white flex items-center gap-1">
                   <MapPin className="w-4 h-4 text-gray-400" />
-                  {city || '-'}
+                  {[province, city].filter(Boolean).join(' ') || '-'}
                 </div>
               )}
             </div>
@@ -279,6 +344,24 @@ const CoachProfile: React.FC<CoachProfileProps> = ({ onBack = () => window.histo
                 />
               ) : (
                 <div className="text-white">{licenseNumber || '-'}</div>
+              )}
+            </div>
+            <div>
+              <label className="block text-gray-400 text-sm mb-1">执教年限</label>
+              {isEditing ? (
+                <input
+                  type="number"
+                  min={0}
+                  value={coachingYears}
+                  onChange={(e) => setCoachingYears(e.target.value)}
+                  placeholder="如：9"
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+                />
+              ) : (
+                <div className="text-white flex items-center gap-1">
+                  <Clock className="w-4 h-4 text-gray-400" />
+                  {coachingYears ? `${coachingYears} 年` : '-'}
+                </div>
               )}
             </div>
           </div>

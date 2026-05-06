@@ -1,13 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { clubApi, teamApi, matchSummaryApi } from '../../services/api';
+import { clubApi, teamApi } from '../../services/api';
 import {
   ChevronLeft, Plus, Calendar, MapPin, Trophy,
   X, ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon, FileText
+  ChevronRight as ChevronRightIcon, FileText, Loader2, Eye
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface MatchCalendarProps {
   onBack: () => void;
+  onOpenSummary?: (summaryId?: number) => void;
 }
 
 interface MatchSchedule {
@@ -45,10 +47,11 @@ const statusMap: Record<string, { label: string; class: string }> = {
   cancelled: { label: '已取消', class: 'bg-red-500/20 text-red-300' },
 };
 
-const MatchCalendar: React.FC<MatchCalendarProps> = ({ onBack }) => {
+const MatchCalendar: React.FC<MatchCalendarProps> = ({ onBack, onOpenSummary }) => {
   const [schedules, setSchedules] = useState<MatchSchedule[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
+  const [creatingSummaryId, setCreatingSummaryId] = useState<number | null>(null);
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -166,21 +169,27 @@ const MatchCalendar: React.FC<MatchCalendarProps> = ({ onBack }) => {
   };
 
   const handleCreateSummary = async (schedule: MatchSchedule) => {
+    setCreatingSummaryId(schedule.id);
     try {
-      const res = await matchSummaryApi.createSummary({
-        teamId: schedule.teamId,
-        matchName: schedule.name,
-        opponent: schedule.opponent,
-        matchDate: schedule.matchTime.slice(0, 10),
-        location: schedule.location,
-        scheduleId: schedule.id,
-      });
-      if (res.data?.success && res.data.data?.id) {
-        alert('比赛总结创建成功，正在跳转...');
-        // 这里可以触发路由跳转，当前页面暂用 alert
+      const res = await clubApi.createMatchSummaryFromSchedule(schedule.id);
+      const summaryId = res.data?.data?.matchSummaryId || res.data?.data?.id;
+      if (res.data?.success && summaryId) {
+        toast.success(res.data.data?.created === false ? '该赛程已关联比赛总结' : '比赛总结已创建');
+        await loadSchedules();
+        onOpenSummary?.(summaryId);
+      } else {
+        toast.error('创建比赛总结失败');
       }
     } catch (err) {
       console.error('创建比赛总结失败:', err);
+      const error = err as { response?: { data?: { error?: string | { message?: string }; message?: string } } };
+      const responseError = error.response?.data?.error;
+      const message = typeof responseError === 'string'
+        ? responseError
+        : responseError?.message || error.response?.data?.message || '创建比赛总结失败';
+      toast.error(message);
+    } finally {
+      setCreatingSummaryId(null);
     }
   };
 
@@ -335,12 +344,21 @@ const MatchCalendar: React.FC<MatchCalendarProps> = ({ onBack }) => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {s.status === 'completed' && !s.matchSummaryId && (
+                      {s.matchSummaryId ? (
+                        <button
+                          onClick={() => onOpenSummary?.(s.matchSummaryId)}
+                          className="px-3 py-1.5 text-sm bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-lg transition-colors flex items-center gap-1"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> 查看总结
+                        </button>
+                      ) : s.status === 'completed' && (
                         <button
                           onClick={() => handleCreateSummary(s)}
+                          disabled={creatingSummaryId === s.id}
                           className="px-3 py-1.5 text-sm bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors flex items-center gap-1"
                         >
-                          <FileText className="w-3.5 h-3.5" /> 创建总结
+                          {creatingSummaryId === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+                          {creatingSummaryId === s.id ? '创建中' : '创建总结'}
                         </button>
                       )}
                       <button

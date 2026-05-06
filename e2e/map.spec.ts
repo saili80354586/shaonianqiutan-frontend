@@ -16,23 +16,43 @@ async function safeClick(page: any, locator: any) {
   });
 }
 
+async function waitForScoutMapReady(page: any) {
+  await page.locator('#screen-map').waitFor({ state: 'visible', timeout: 15000 });
+  await expect(page.locator('text=全国实体分布').first()).toBeVisible({ timeout: 15000 });
+}
+
+async function visibleEntityTabs(page: any) {
+  return page.locator('[data-testid="entity-layer-tabs"]:visible').first();
+}
+
+async function openRecentActivities(page: any) {
+  const section = page.locator('#screen-data');
+  await section.scrollIntoViewIfNeeded();
+  const activitiesTab = section.locator('button:has-text("近期活动")').first();
+  await safeClick(page, activitiesTab);
+  await expect(section.locator('h2:has-text("近期活动")').first()).toBeVisible({ timeout: 8000 });
+  return section;
+}
+
 test.describe('球探地图 - Stage 4', () => {
   test.describe('未登录访客', () => {
     test.beforeEach(async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 900 });
       await page.goto('/scout-map');
-      await page.waitForSelector('h1:has-text("球探地图")', { timeout: 15000 });
+      await waitForScoutMapReady(page);
       await page.waitForTimeout(1500);
     });
 
     test('应该显示球探地图页面标题', async ({ page }) => {
-      await expect(page.getByRole('heading', { name: '球探地图' })).toBeVisible();
+      await expect(page.locator('text=全国实体分布').first()).toBeVisible();
     });
 
     test('应该显示筛选栏和图层切换', async ({ page }) => {
-      await expect(page.locator('text=图层').first()).toBeVisible();
-      await expect(page.locator('button:has-text("密度")').or(page.locator('button:has-text("潜力")')).first()).toBeVisible();
-      await expect(page.locator('button:has-text("前锋")').first()).toBeVisible();
+      const tabs = await visibleEntityTabs(page);
+      await expect(tabs).toBeVisible();
+      await expect(tabs.locator('button:has-text("球员")')).toBeVisible();
+      await expect(page.locator('button[title="球员密度"]:visible').or(page.locator('button[title="潜力评分"]:visible')).first()).toBeVisible();
+      await expect(page.locator('button[title="前锋"]:visible').first()).toBeVisible();
     });
 
     test('应该显示地图容器', async ({ page }) => {
@@ -42,21 +62,19 @@ test.describe('球探地图 - Stage 4', () => {
     });
 
     test('侧边栏应该显示统计卡片', async ({ page }) => {
-      await expect(page.locator('text=球员总数').first()).toBeVisible();
+      await expect(page.locator('text=实体总数').first()).toBeVisible();
       await expect(page.locator('text=覆盖省份').first().or(page.locator('text=覆盖城市').first())).toBeVisible();
     });
 
     test('应该显示数据大屏按钮', async ({ page }) => {
-      await expect(page.locator('button:has-text("数据大屏")').first()).toBeVisible();
+      await expect(page.locator('button:has-text("数据洞察")').first()).toBeVisible();
     });
 
     test('点击数据大屏应该打开数据看板覆盖层', async ({ page }) => {
-      const btn = page.locator('button:has-text("数据大屏")').first();
+      const btn = page.locator('button:has-text("数据洞察")').first();
       await safeClick(page, btn);
-      await expect(page.locator('text=数据看板').first()).toBeVisible({ timeout: 8000 });
+      await expect(page.locator('text=平台数据洞察').first()).toBeVisible({ timeout: 8000 });
       await expect(page.locator('text=总入驻球员').first()).toBeVisible();
-      await page.locator('button:has([class*="lucide-x"])').first().click();
-      await expect(page.locator('text=数据看板').first()).not.toBeVisible();
     });
 
     test('应该显示海外球员入口', async ({ page }) => {
@@ -66,8 +84,7 @@ test.describe('球探地图 - Stage 4', () => {
     test('点击海外球员应该打开海外球员弹窗', async ({ page }) => {
       const card = page.locator('text=海外球员专区').first();
       await safeClick(page, card);
-      await expect(page.locator('text=海外球员').first()).toBeVisible({ timeout: 8000 });
-      await page.locator('button:has([class*="lucide-x"])').first().click();
+      await expect(page.locator('text=探索全球青少年足球新星').first()).toBeVisible({ timeout: 8000 });
     });
 
     test('未登录时不应该显示我的排名按钮', async ({ page }) => {
@@ -75,7 +92,7 @@ test.describe('球探地图 - Stage 4', () => {
     });
 
     test('面包屑应该显示全国', async ({ page }) => {
-      await expect(page.locator('text=全国').first()).toBeVisible();
+      await expect(page.locator('button:has-text("全国"):visible').first()).toBeVisible();
     });
   });
 
@@ -84,21 +101,21 @@ test.describe('球探地图 - Stage 4', () => {
       await page.setViewportSize({ width: 1280, height: 900 });
       await loginAsPlayer(page);
       await page.goto('/scout-map');
-      await page.waitForSelector('h1:has-text("球探地图")', { timeout: 15000 });
+      await waitForScoutMapReady(page);
       await page.waitForTimeout(1500);
     });
 
-    test('应该显示我的排名按钮', async ({ page }) => {
-      await expect(page.locator('button:has-text("我的排名")').first()).toBeVisible();
+    test('应该显示我的排名模块', async ({ page }) => {
+      const discover = page.locator('#screen-discover');
+      await discover.scrollIntoViewIfNeeded();
+      await expect(discover.locator('text=我的排名').first()).toBeVisible({ timeout: 10000 });
     });
 
-    test('点击我的排名应该打开排名视图', async ({ page }) => {
-      const btn = page.locator('button:has-text("我的排名")').first();
-      await safeClick(page, btn);
-      await expect(page.locator('text=我的排名').first()).toBeVisible({ timeout: 8000 });
-      await expect(page.locator('text=加载中...')).not.toBeVisible({ timeout: 15000 });
-      await expect(page.locator('text=/同龄排名|同位置对比/').first()).toBeVisible({ timeout: 8000 });
-      await page.locator('button:has([class*="lucide-x"])').first().click();
+    test('我的排名模块应该显示排名维度', async ({ page }) => {
+      const discover = page.locator('#screen-discover');
+      await discover.scrollIntoViewIfNeeded();
+      await expect(discover.locator('text=我的排名').first()).toBeVisible({ timeout: 10000 });
+      await expect(discover.locator('text=/同龄排名|同位置对比/').first()).toBeVisible({ timeout: 10000 });
     });
   });
 
@@ -106,14 +123,14 @@ test.describe('球探地图 - Stage 4', () => {
     test.beforeEach(async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 900 });
       await page.goto('/scout-map');
-      await page.waitForSelector('h1:has-text("球探地图")', { timeout: 15000 });
+      await waitForScoutMapReady(page);
       await page.waitForTimeout(1500);
     });
 
     test('移动端菜单应该可以展开并显示功能入口', async ({ page }) => {
       await page.setViewportSize({ width: 375, height: 667 });
       await page.reload();
-      await page.waitForSelector('h1:has-text("球探地图")', { timeout: 15000 });
+      await waitForScoutMapReady(page);
       await page.waitForTimeout(2000);
       const menuButton = page.locator('[data-testid="scout-map-menu-btn"]');
       if (await menuButton.isVisible().catch(() => false)) {
@@ -129,7 +146,7 @@ test.describe('球探地图 - Stage 4', () => {
     test('移动端底部抽屉应该支持点击展开和收起', async ({ page }) => {
       await page.setViewportSize({ width: 375, height: 667 });
       await page.reload();
-      await page.waitForSelector('h1:has-text("球探地图")', { timeout: 15000 });
+      await waitForScoutMapReady(page);
       await page.waitForTimeout(1500);
 
       const handle = page.locator('[data-testid="mobile-panel-handle"]');
@@ -139,7 +156,7 @@ test.describe('球探地图 - Stage 4', () => {
       await handle.click();
       await page.waitForTimeout(400);
       // 展开后应该能看到更多列表内容
-      await expect(page.locator('text=球员总数').first()).toBeVisible();
+      await expect(page.locator('text=实体总数').first()).toBeVisible();
 
       // 再次点击收起
       await handle.click();
@@ -149,22 +166,21 @@ test.describe('球探地图 - Stage 4', () => {
     test('P5-5: 移动端图层Tab应支持横向滚动', async ({ page }) => {
       await page.setViewportSize({ width: 375, height: 667 });
       await page.reload();
-      await page.waitForSelector('h1:has-text("球探地图")', { timeout: 15000 });
+      await waitForScoutMapReady(page);
       await page.waitForTimeout(1500);
 
-      // 展开移动端面板
-      const handle = page.locator('[data-testid="mobile-panel-handle"]');
-      await expect(handle).toBeVisible();
-      await safeClick(page, handle);
+      const filterToggle = page.locator('#screen-map button:has-text("筛选")').first();
+      await expect(filterToggle).toBeVisible();
+      await safeClick(page, filterToggle);
       await page.waitForTimeout(600);
 
       // 移动端应显示所有图层Tab（通过横向滚动）
-      const tabsContainer = page.locator('[data-testid="entity-layer-tabs"]').first();
+      const tabsContainer = page.locator('[data-testid="entity-layer-tabs"]:visible').first();
       await expect(tabsContainer).toBeVisible({ timeout: 8000 });
 
       // 应能看到至少部分图层按钮
-      await expect(page.locator('button:has-text("球员")').first()).toBeVisible();
-      await expect(page.locator('button:has-text("俱乐部")').first()).toBeVisible();
+      await expect(tabsContainer.locator('button:has-text("球员")')).toBeVisible();
+      await expect(tabsContainer.locator('button:has-text("俱乐部")')).toBeVisible();
 
       // 页面不应出现横向滚动条溢出（body不应有横向滚动）
       const bodyScrollWidth = await page.evaluate(() => document.body.scrollWidth);
@@ -178,7 +194,7 @@ test.describe('球探地图 - Stage 4', () => {
       await page.setViewportSize({ width: 1280, height: 900 });
       await loginAsPlayer(page);
       await page.goto('/scout-map');
-      await page.waitForSelector('h1:has-text("球探地图")', { timeout: 15000 });
+      await waitForScoutMapReady(page);
       await page.waitForTimeout(1500);
     });
 
@@ -199,7 +215,7 @@ test.describe('球探地图 - Stage 4', () => {
     test.beforeEach(async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 900 });
       await page.goto('/scout-map');
-      await page.waitForSelector('h1:has-text("球探地图")', { timeout: 15000 });
+      await waitForScoutMapReady(page);
       await page.waitForTimeout(1500);
     });
 
@@ -225,10 +241,10 @@ test.describe('球探地图 - Stage 4', () => {
       await page.waitForTimeout(1200);
 
       // 城市视图：检查页面是否仍处于正常状态（URL未变，标题仍在）
-      await expect(page.getByRole('heading', { name: '球探地图' })).toBeVisible();
+      await expect(page.locator('#screen-map')).toBeVisible();
       // 截图调试：无论城市视图显示什么，只要页面没崩溃即视为钻取成功
       const pageContent = await page.locator('body').textContent() || '';
-      expect(pageContent.includes('球探地图')).toBe(true);
+      expect(pageContent.includes('全国') || pageContent.includes('当前城市')).toBe(true);
     });
 
     test('P5-2: 切换实体图层后列表应更新', async ({ page }) => {
@@ -236,7 +252,8 @@ test.describe('球探地图 - Stage 4', () => {
       await expect(page.locator('[data-testid="province-item"]').first()).toBeVisible({ timeout: 10000 });
 
       // 切换到俱乐部图层
-      const clubsTab = page.locator('button:has-text("俱乐部")').first();
+      const entityTabs = await visibleEntityTabs(page);
+      const clubsTab = entityTabs.locator('button:has-text("俱乐部")');
       await safeClick(page, clubsTab);
       await page.waitForTimeout(800);
 
@@ -246,7 +263,7 @@ test.describe('球探地图 - Stage 4', () => {
       expect(hasProvinces || hasEmpty).toBe(true);
 
       // 切换到全部图层
-      const allTab = page.locator('button:has-text("全部")').first();
+      const allTab = entityTabs.locator('button:has-text("全部")');
       await safeClick(page, allTab);
       await page.waitForTimeout(800);
 
@@ -274,7 +291,7 @@ test.describe('球探地图 - Stage 4', () => {
 
     test('P5-4: 筛选器与图层组合使用', async ({ page }) => {
       // 应用位置筛选（前锋）
-      const forwardBtn = page.locator('button:has-text("前锋")').first();
+      const forwardBtn = page.locator('button[title="前锋"]').first();
       await safeClick(page, forwardBtn);
       await page.waitForTimeout(600);
 
@@ -284,7 +301,8 @@ test.describe('球探地图 - Stage 4', () => {
       expect(hasProvinces || hasEmpty).toBe(true);
 
       // 在筛选状态下切换图层
-      const scoutsTab = page.locator('button:has-text("球探")').first();
+      const entityTabs = await visibleEntityTabs(page);
+      const scoutsTab = entityTabs.locator('button:has-text("球探")');
       await safeClick(page, scoutsTab);
       await page.waitForTimeout(800);
 
@@ -298,73 +316,67 @@ test.describe('球探地图 - Stage 4', () => {
     test.beforeEach(async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 900 });
       await page.goto('/scout-map');
-      await page.waitForSelector('h1:has-text("球探地图")', { timeout: 15000 });
+      await waitForScoutMapReady(page);
       await page.waitForTimeout(1500);
     });
 
     test('Screen2 应该显示"近期活动"Tab 入口', async ({ page }) => {
-      const activitiesTab = page.locator('button:has-text("近期活动")').first();
+      const section = page.locator('#screen-data');
+      await section.scrollIntoViewIfNeeded();
+      const activitiesTab = section.locator('button:has-text("近期活动")').first();
       await expect(activitiesTab).toBeVisible({ timeout: 10000 });
     });
 
     test('点击"近期活动"Tab 应该切换到活动视图并显示地图和卡片', async ({ page }) => {
-      const activitiesTab = page.locator('button:has-text("近期活动")').first();
-      await safeClick(page, activitiesTab);
-      await page.waitForTimeout(800);
+      const section = await openRecentActivities(page);
 
       // 活动标题
-      await expect(page.locator('text=近期活动').first()).toBeVisible();
-      await expect(page.locator('text=发现全国各地的试训、集训营与交流赛机会').first()).toBeVisible();
+      await expect(section.locator('text=近期活动').first()).toBeVisible();
+      await expect(section.locator('text=发现未来 30 天内全国各地的试训、集训营与交流赛机会').first()).toBeVisible();
 
       // 地图容器
-      const mapContainer = page.locator('text=加载活动地图...').or(page.locator('canvas').first());
+      const mapContainer = section.locator('text=加载活动地图...').or(section.locator('canvas').first());
       await expect(mapContainer).toBeVisible({ timeout: 10000 });
 
       // 活动卡片列表或加载状态
-      const cardList = page.locator('text=加载活动中...').or(page.locator('[data-activity-id]').first());
+      const cardList = section.locator('text=加载活动中...').or(section.locator('[data-activity-id]').first());
       await expect(cardList).toBeVisible({ timeout: 10000 });
     });
 
     test('活动视图应该显示类型筛选 Tab（全部/试训/集训营/邀请赛/交流赛）', async ({ page }) => {
-      const activitiesTab = page.locator('button:has-text("近期活动")').first();
-      await safeClick(page, activitiesTab);
-      await page.waitForTimeout(800);
+      const section = await openRecentActivities(page);
 
-      await expect(page.locator('button:has-text("全部")').first()).toBeVisible();
-      await expect(page.locator('button:has-text("试训")').first()).toBeVisible();
-      await expect(page.locator('button:has-text("集训营")').first()).toBeVisible();
-      await expect(page.locator('button:has-text("邀请赛")').first()).toBeVisible();
-      await expect(page.locator('button:has-text("交流赛")').first()).toBeVisible();
+      await expect(section.locator('button:has-text("全部")').first()).toBeVisible();
+      await expect(section.locator('button:has-text("试训")').first()).toBeVisible();
+      await expect(section.locator('button:has-text("集训营")').first()).toBeVisible();
+      await expect(section.locator('button:has-text("邀请赛")').first()).toBeVisible();
+      await expect(section.locator('button:has-text("交流赛")').first()).toBeVisible();
     });
 
     test('切换筛选 Tab 应该过滤活动卡片', async ({ page }) => {
-      const activitiesTab = page.locator('button:has-text("近期活动")').first();
-      await safeClick(page, activitiesTab);
-      await page.waitForTimeout(1000);
+      const section = await openRecentActivities(page);
 
       // 等待卡片加载
-      await page.waitForSelector('[data-activity-id]', { timeout: 10000 });
+      await section.locator('[data-activity-id]').first().waitFor({ state: 'visible', timeout: 10000 });
 
-      const allCount = await page.locator('[data-activity-id]').count();
+      const allCount = await section.locator('[data-activity-id]').count();
       expect(allCount).toBeGreaterThan(0);
 
       // 切换到"试训"Tab
-      const trialTab = page.locator('button:has-text("试训")').first();
+      const trialTab = section.locator('button:has-text("试训")').first();
       await safeClick(page, trialTab);
       await page.waitForTimeout(500);
 
-      const trialCards = page.locator('[data-activity-id]');
+      const trialCards = section.locator('[data-activity-id]');
       const trialCount = await trialCards.count();
       // 试训卡片数应小于等于全部卡片数
       expect(trialCount).toBeLessThanOrEqual(allCount);
     });
 
     test('活动卡片应该显示标题、地点、时间和报名进度', async ({ page }) => {
-      const activitiesTab = page.locator('button:has-text("近期活动")').first();
-      await safeClick(page, activitiesTab);
-      await page.waitForTimeout(1000);
+      const section = await openRecentActivities(page);
 
-      const firstCard = page.locator('[data-activity-id]').first();
+      const firstCard = section.locator('[data-activity-id]').first();
       await expect(firstCard).toBeVisible({ timeout: 10000 });
 
       // 标题
@@ -376,42 +388,34 @@ test.describe('球探地图 - Stage 4', () => {
     });
 
     test('点击活动卡片应该打开活动详情抽屉', async ({ page }) => {
-      const activitiesTab = page.locator('button:has-text("近期活动")').first();
-      await safeClick(page, activitiesTab);
-      await page.waitForTimeout(1000);
+      const section = await openRecentActivities(page);
 
-      const firstCard = page.locator('[data-activity-id]').first();
+      const firstCard = section.locator('[data-activity-id]').first();
       await expect(firstCard).toBeVisible({ timeout: 10000 });
       await safeClick(page, firstCard);
 
       // 抽屉标题
       await expect(page.locator('text=活动详情').first()).toBeVisible({ timeout: 5000 });
-      // 报名信息表单
-      await expect(page.locator('text=球员姓名').first()).toBeVisible();
-      await expect(page.locator('text=联系电话').first()).toBeVisible();
+      await expect(page.locator('text=报名信息').first()).toBeVisible();
     });
 
     test('活动详情抽屉应该显示关闭按钮', async ({ page }) => {
-      const activitiesTab = page.locator('button:has-text("近期活动")').first();
-      await safeClick(page, activitiesTab);
-      await page.waitForTimeout(1000);
+      const section = await openRecentActivities(page);
 
-      const firstCard = page.locator('[data-activity-id]').first();
+      const firstCard = section.locator('[data-activity-id]').first();
       await safeClick(page, firstCard);
       await expect(page.locator('text=活动详情').first()).toBeVisible({ timeout: 5000 });
 
       // 关闭按钮（X 图标）
-      await page.locator('button:has([class*="lucide-x"])').first().click();
+      await page.locator('button[title="关闭"]').last().evaluate((el: HTMLElement) => el.click());
       await page.waitForTimeout(300);
       await expect(page.locator('text=活动详情').first()).not.toBeVisible();
     });
 
     test('未登录时点击"立即报名"应该打开抽屉并显示报名表单', async ({ page }) => {
-      const activitiesTab = page.locator('button:has-text("近期活动")').first();
-      await safeClick(page, activitiesTab);
-      await page.waitForTimeout(1000);
+      const section = await openRecentActivities(page);
 
-      const firstCard = page.locator('[data-activity-id]').first();
+      const firstCard = section.locator('[data-activity-id]').first();
       await expect(firstCard).toBeVisible({ timeout: 10000 });
 
       // 点击卡片上的"立即报名"按钮

@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Search, Calendar, Edit2, Trash2, ChevronRight, Clock, CheckCircle, AlertCircle, X, Save } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ArrowLeft, Plus, Search, Calendar, Edit2, Trash2, X, Save, ClipboardList, AlertCircle, Loader2 } from 'lucide-react';
 import { CardGridSkeleton } from '../../components/ui/loading';
+import { coachApi, teamApi } from '../../services/club';
+
+type NoteCategory = 'technical' | 'tactical' | 'physical' | 'mental';
+type NotePriority = 'high' | 'medium' | 'low';
 
 interface TrainingNote {
   id: string;
@@ -9,90 +13,186 @@ interface TrainingNote {
   date: string;
   title: string;
   content: string;
-  category: 'technical' | 'tactical' | 'physical' | 'mental';
-  priority: 'high' | 'medium' | 'low';
-  completed: boolean;
+  category: NoteCategory;
+  priority: NotePriority;
+}
+
+interface PlayerOption {
+  id: string;
+  name: string;
+  teamName: string;
+  position?: string;
 }
 
 interface TrainingNotesProps {
   onBack: () => void;
 }
 
-const createTrainingNoteId = () => Date.now().toString();
+const priorityToRating: Record<NotePriority, number> = {
+  high: 5,
+  medium: 3,
+  low: 1,
+};
+
+const ratingToPriority = (rating?: number): NotePriority => {
+  if ((rating || 0) >= 4) return 'high';
+  if ((rating || 0) >= 2) return 'medium';
+  return 'low';
+};
+
+const normalizeList = (data: any) => {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.list)) return data.list;
+  return [];
+};
+
+const formatDate = (value?: string) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value.slice(0, 10);
+  return date.toISOString().slice(0, 10);
+};
 
 const TrainingNotes: React.FC<TrainingNotesProps> = ({ onBack }) => {
   const [notes, setNotes] = useState<TrainingNote[]>([]);
+  const [players, setPlayers] = useState<PlayerOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingNote, setEditingNote] = useState<TrainingNote | null>(null);
 
   const [formData, setFormData] = useState<{
-    playerName: string;
+    playerId: string;
     title: string;
     content: string;
-    category: TrainingNote['category'];
-    priority: TrainingNote['priority'];
+    category: NoteCategory;
+    priority: NotePriority;
   }>({
-    playerName: '',
+    playerId: '',
     title: '',
     content: '',
     category: 'technical',
     priority: 'medium',
   });
 
-  useEffect(() => {
-    loadNotes();
+  const loadPlayers = useCallback(async () => {
+    const teamsRes = await teamApi.getMyTeams();
+    const teams = normalizeList(teamsRes.data?.data);
+    const playerGroups = await Promise.all(
+      teams.map(async (team: any) => {
+        const res = await teamApi.getTeamPlayers(Number(team.id));
+        return normalizeList(res.data?.data).map((player: any) => ({
+          id: String(player.userId || player.user_id || player.id),
+          name: player.name || player.user?.name || '未命名球员',
+          teamName: team.name || '未命名球队',
+          position: player.position,
+        }));
+      })
+    );
+
+    const unique = new Map<string, PlayerOption>();
+    playerGroups.flat().forEach((player) => unique.set(player.id, player));
+    setPlayers(Array.from(unique.values()));
   }, []);
 
-  const loadNotes = async () => {
+  const loadNotes = useCallback(async () => {
     setLoading(true);
-    await new Promise(r => setTimeout(r, 600));
-    setNotes([
-      { id: '1', playerName: '李明', playerId: '1', date: '2025-03-20', title: '射门技术改进', content: '左脚射门力量不足，需要加强左脚训练。建议在下次训练中增加左脚射门练习20分钟。', category: 'technical', priority: 'high', completed: false },
-      { id: '2', playerName: '王强', playerId: '2', date: '2025-03-18', title: '体能恢复计划', content: '最近比赛密集，需要调整训练强度。建议本周减少高强度对抗，增加恢复性训练。', category: 'physical', priority: 'medium', completed: true },
-      { id: '3', playerName: '张浩', playerId: '3', date: '2025-03-15', title: '防守站位指导', content: '一对一防守时站位过于激进，容易被过。需要练习保持适当距离，延缓对方进攻。', category: 'tactical', priority: 'high', completed: false },
-      { id: '4', playerName: '李明', playerId: '1', date: '2025-03-10', title: '心理状态关注', content: '最近比赛压力较大，表现出焦虑情绪。建议进行心理辅导，帮助他建立自信。', category: 'mental', priority: 'medium', completed: false },
-    ]);
-    setLoading(false);
-  };
-
-  const handleSave = () => {
-    if (!formData.playerName || !formData.title) return;
-    
-    if (editingNote) {
-      setNotes(notes.map(n => n.id === editingNote.id ? { ...n, ...formData } : n));
-    } else {
-      const newNote: TrainingNote = {
-        id: createTrainingNoteId(),
-        ...formData,
-        playerId: 'new',
-        date: new Date().toISOString().split('T')[0],
-        completed: false,
-      };
-      setNotes([newNote, ...notes]);
+    setError('');
+    try {
+      const [notesRes] = await Promise.all([
+        coachApi.getTrainingNotes({ page: 1, pageSize: 50 }),
+        loadPlayers(),
+      ]);
+      const list = normalizeList(notesRes.data?.data);
+      setNotes(list.map((note: any) => ({
+        id: String(note.id),
+        playerId: String(note.playerId || note.player_id || ''),
+        playerName: note.playerName || note.player?.name || '未命名球员',
+        date: formatDate(note.createdAt || note.created_at),
+        title: note.title || '',
+        content: note.content || '',
+        category: (note.category || 'technical') as NoteCategory,
+        priority: ratingToPriority(note.rating),
+      })));
+    } catch (err) {
+      setError('训练笔记加载失败，请稍后重试');
+      setNotes([]);
+    } finally {
+      setLoading(false);
     }
-    closeModal();
-  };
+  }, [loadPlayers]);
+
+  useEffect(() => {
+    loadNotes();
+  }, [loadNotes]);
 
   const closeModal = () => {
     setShowAddModal(false);
     setEditingNote(null);
-    setFormData({ playerName: '', title: '', content: '', category: 'technical', priority: 'medium' });
+    setFormData({ playerId: '', title: '', content: '', category: 'technical', priority: 'medium' });
   };
 
-  const toggleComplete = (noteId: string) => {
-    setNotes(notes.map(n => n.id === noteId ? { ...n, completed: !n.completed } : n));
+  const openEditModal = (note: TrainingNote) => {
+    setEditingNote(note);
+    setFormData({
+      playerId: note.playerId,
+      title: note.title,
+      content: note.content,
+      category: note.category,
+      priority: note.priority,
+    });
+    setShowAddModal(true);
   };
 
-  const deleteNote = (noteId: string) => {
-    setNotes(notes.filter(n => n.id !== noteId));
+  const handleSave = async () => {
+    if (!formData.playerId || !formData.title || !formData.content) return;
+    setSaving(true);
+    setError('');
+    try {
+      const payload = {
+        title: formData.title,
+        content: formData.content,
+        category: formData.category,
+        tags: [formData.priority],
+        rating: priorityToRating[formData.priority],
+        isPublic: false,
+      };
+
+      if (editingNote) {
+        await coachApi.updateTrainingNote(Number(editingNote.id), payload);
+      } else {
+        await coachApi.createTrainingNote({
+          playerId: Number(formData.playerId),
+          ...payload,
+        });
+      }
+
+      closeModal();
+      await loadNotes();
+    } catch (err) {
+      setError(editingNote ? '训练笔记更新失败' : '训练笔记创建失败');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteNote = async (noteId: string) => {
+    if (!window.confirm('确认删除这条训练笔记？')) return;
+    setError('');
+    try {
+      await coachApi.deleteTrainingNote(Number(noteId));
+      await loadNotes();
+    } catch (err) {
+      setError('训练笔记删除失败');
+    }
   };
 
   const filteredNotes = notes.filter(n => {
-    const matchSearch = n.playerName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                       n.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchSearch = n.playerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      n.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchCategory = categoryFilter === 'all' || n.category === categoryFilter;
     return matchSearch && matchCategory;
   });
@@ -104,7 +204,7 @@ const TrainingNotes: React.FC<TrainingNotesProps> = ({ onBack }) => {
       physical: { bg: 'bg-green-500/20', text: 'text-green-400', label: '体能' },
       mental: { bg: 'bg-amber-500/20', text: 'text-amber-400', label: '心理' },
     };
-    const c = map[cat];
+    const c = map[cat] || map.technical;
     return <span className={`px-2 py-1 rounded-full text-xs ${c.bg} ${c.text}`}>{c.label}</span>;
   };
 
@@ -114,14 +214,13 @@ const TrainingNotes: React.FC<TrainingNotesProps> = ({ onBack }) => {
       medium: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', label: '中优先级' },
       low: { bg: 'bg-gray-500/20', text: 'text-gray-400', label: '低优先级' },
     };
-    const p = map[prio];
+    const p = map[prio] || map.medium;
     return <span className={`px-2 py-1 rounded-full text-xs ${p.bg} ${p.text}`}>{p.label}</span>;
   };
 
   return (
     <div className="min-h-screen bg-[#0f1419]">
       <div className="p-8">
-        {/* 头部 */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <button onClick={onBack} className="p-2 hover:bg-gray-800 rounded-xl transition-colors text-gray-400 hover:text-white">
@@ -137,7 +236,13 @@ const TrainingNotes: React.FC<TrainingNotesProps> = ({ onBack }) => {
           </button>
         </div>
 
-        {/* 筛选栏 */}
+        {error && (
+          <div className="mb-6 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            <AlertCircle className="w-4 h-4" />
+            {error}
+          </div>
+        )}
+
         <div className="flex flex-wrap items-center gap-4 mb-6">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
@@ -158,7 +263,6 @@ const TrainingNotes: React.FC<TrainingNotesProps> = ({ onBack }) => {
           </select>
         </div>
 
-        {/* 笔记列表 */}
         <div className="space-y-4">
           {loading ? (
             <CardGridSkeleton count={4} columns={1} />
@@ -170,26 +274,22 @@ const TrainingNotes: React.FC<TrainingNotesProps> = ({ onBack }) => {
             </div>
           ) : (
             filteredNotes.map(note => (
-              <div key={note.id} className={`bg-[#1a1f2e] rounded-2xl border border-gray-800 p-6 transition-all ${note.completed ? 'opacity-60' : ''}`}>
+              <div key={note.id} className="bg-[#1a1f2e] rounded-2xl border border-gray-800 p-6 transition-all">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <span className="font-semibold text-white">{note.playerName}</span>
                       {getCategoryBadge(note.category)}
                       {getPriorityBadge(note.priority)}
-                      {note.completed && <span className="px-2 py-1 rounded-full text-xs bg-green-500/20 text-green-400">已完成</span>}
                     </div>
-                    <h3 className={`text-lg font-medium mb-2 ${note.completed ? 'text-gray-500 line-through' : 'text-white'}`}>{note.title}</h3>
+                    <h3 className="text-lg font-medium mb-2 text-white">{note.title}</h3>
                     <p className="text-gray-400 text-sm mb-3 line-clamp-2">{note.content}</p>
                     <div className="flex items-center gap-4 text-sm text-gray-500">
                       <span className="flex items-center gap-1"><Calendar className="w-4 h-4" /> {note.date}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 ml-4">
-                    <button onClick={() => toggleComplete(note.id)} className={`p-2 rounded-lg transition-colors ${note.completed ? 'bg-green-500/20 text-green-400' : 'bg-gray-800 text-gray-400 hover:text-green-400'}`}>
-                      <CheckCircle className="w-5 h-5" />
-                    </button>
-                    <button onClick={() => { setEditingNote(note); setFormData({ playerName: note.playerName, title: note.title, content: note.content, category: note.category, priority: note.priority }); setShowAddModal(true); }} className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-blue-400 transition-colors">
+                    <button onClick={() => openEditModal(note)} className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-blue-400 transition-colors">
                       <Edit2 className="w-5 h-5" />
                     </button>
                     <button onClick={() => deleteNote(note.id)} className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-red-400 transition-colors">
@@ -203,7 +303,6 @@ const TrainingNotes: React.FC<TrainingNotesProps> = ({ onBack }) => {
         </div>
       </div>
 
-      {/* 添加/编辑弹窗 */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-[#1a1f2e] rounded-2xl border border-gray-800 w-full max-w-lg max-h-[90vh] overflow-auto">
@@ -215,17 +314,29 @@ const TrainingNotes: React.FC<TrainingNotesProps> = ({ onBack }) => {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-2">球员姓名 *</label>
-                <input type="text" value={formData.playerName} onChange={e => setFormData({...formData, playerName: e.target.value})} className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-orange-500" placeholder="输入球员姓名" />
+                <label className="block text-sm text-gray-400 mb-2">球员 *</label>
+                <select
+                  value={formData.playerId}
+                  disabled={Boolean(editingNote)}
+                  onChange={e => setFormData({ ...formData, playerId: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-orange-500 disabled:opacity-60"
+                >
+                  <option value="">选择球员</option>
+                  {players.map(player => (
+                    <option key={player.id} value={player.id}>
+                      {player.name} · {player.teamName}{player.position ? ` · ${player.position}` : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm text-gray-400 mb-2">标题 *</label>
-                <input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-orange-500" placeholder="输入笔记标题" />
+                <input type="text" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-orange-500" placeholder="输入笔记标题" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">分类</label>
-                  <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value as any})} className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-orange-500">
+                  <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value as NoteCategory })} className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-orange-500">
                     <option value="technical">技术</option>
                     <option value="tactical">战术</option>
                     <option value="physical">体能</option>
@@ -234,7 +345,7 @@ const TrainingNotes: React.FC<TrainingNotesProps> = ({ onBack }) => {
                 </div>
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">优先级</label>
-                  <select value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value as any})} className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-orange-500">
+                  <select value={formData.priority} onChange={e => setFormData({ ...formData, priority: e.target.value as NotePriority })} className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-orange-500">
                     <option value="high">高</option>
                     <option value="medium">中</option>
                     <option value="low">低</option>
@@ -242,14 +353,15 @@ const TrainingNotes: React.FC<TrainingNotesProps> = ({ onBack }) => {
                 </div>
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-2">内容</label>
-                <textarea value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} rows={4} className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-orange-500 resize-none" placeholder="输入训练笔记内容..." />
+                <label className="block text-sm text-gray-400 mb-2">内容 *</label>
+                <textarea value={formData.content} onChange={e => setFormData({ ...formData, content: e.target.value })} rows={4} className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-orange-500 resize-none" placeholder="输入训练笔记内容..." />
               </div>
             </div>
             <div className="p-6 border-t border-gray-800 flex gap-3">
               <button onClick={closeModal} className="flex-1 py-2.5 border border-gray-700 text-gray-400 hover:text-white rounded-xl transition-colors">取消</button>
-              <button onClick={handleSave} disabled={!formData.playerName || !formData.title} className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-xl transition-colors flex items-center justify-center gap-2">
-                <Save className="w-4 h-4" /> 保存
+              <button onClick={handleSave} disabled={saving || !formData.playerId || !formData.title || !formData.content} className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-xl transition-colors flex items-center justify-center gap-2">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                保存
               </button>
             </div>
           </div>
@@ -258,12 +370,5 @@ const TrainingNotes: React.FC<TrainingNotesProps> = ({ onBack }) => {
     </div>
   );
 };
-
-// ClipboardList icon component
-const ClipboardList = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-  </svg>
-);
 
 export default TrainingNotes;

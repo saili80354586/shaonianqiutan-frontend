@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy, type ReactNode } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { clubApi } from '../../services/api';
 import {
   Users, FileText, Calendar, BarChart3, Plus,
@@ -65,10 +65,13 @@ interface Player {
 interface Notification {
   id: number;
   title: string;
+  subTitle?: string;
   content?: string;
   type?: string;
+  icon?: string;
   isRead?: boolean;
   createdAt?: string;
+  created_at?: string;
 }
 
 interface ApiPlayerItem {
@@ -121,7 +124,63 @@ const WeeklyReportProgress = ({ value }: { value: number }) => {
   );
 };
 
+const formatNotificationTime = (value?: string) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+};
+
+const getNotificationMeta = (notification: Notification) => {
+  const type = notification.type || '';
+  const icon = notification.icon || '';
+  if (type.includes('weekly_report') || icon === 'report') {
+    return {
+      Icon: ClipboardList,
+      color: 'emerald',
+      target: 'weekly-reports',
+      label: '周报',
+    };
+  }
+  if (type.includes('match') || icon === 'match') {
+    return {
+      Icon: Trophy,
+      color: 'amber',
+      target: 'match-management',
+      label: '比赛',
+    };
+  }
+  if (type.includes('activity')) {
+    return {
+      Icon: Calendar,
+      color: 'blue',
+      target: 'activities',
+      label: '活动',
+    };
+  }
+  if (type.includes('order')) {
+    return {
+      Icon: CreditCard,
+      color: 'violet',
+      target: 'order-management',
+      label: '订单',
+    };
+  }
+  return {
+    Icon: Bell,
+    color: 'slate',
+    target: 'announcements',
+    label: '通知',
+  };
+};
+
 const ClubDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'teams' | 'team-detail' | 'players' | 'player-detail' | 'coaches' | 'coach-detail' | 'orders' | 'order-create' | 'order-management' | 'analytics' | 'stats' | 'home-editor' | 'home-preview' | 'physical-tests' | 'create-physical-test' | 'physical-test-record' | 'physical-test-report' | 'weekly-reports' | 'match-management' | 'player-selection' | 'training-plans' | 'match-calendar' | 'activities' | 'admin-logs' | 'announcements'>('overview');
@@ -134,7 +193,7 @@ const ClubDashboard: React.FC = () => {
   const [clubInfo, setClubInfo] = useState<ClubInfo | null>(null);
   const [stats, setStats] = useState({ totalPlayers: 0, activeOrders: 0, completedReports: 0, monthlySpending: 0 });
   const [recentPlayers, setRecentPlayers] = useState<Player[]>([]);
-  const [, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [insights, setInsights] = useState({
     weeklyReportSubmitRate: 0,
     weeklyReportTotal: 0,
@@ -457,7 +516,7 @@ const ClubDashboard: React.FC = () => {
       case 'training-plans':
         return <TrainingPlans onBack={() => handleTabChange('overview')} />;
       case 'match-calendar':
-        return <MatchCalendar onBack={() => handleTabChange('overview')} />;
+        return <MatchCalendar onBack={() => handleTabChange('overview')} onOpenSummary={() => handleTabChange('match-management')} />;
       case 'activities':
         return <ClubActivities clubId={Number(clubInfo?.id) || 0} onBack={() => handleTabChange('overview')} />;
       case 'announcements':
@@ -648,6 +707,70 @@ const ClubDashboard: React.FC = () => {
               />
             </div>
           )}
+        </div>
+
+        {/* 近期动态提醒 */}
+        <div className="mb-8 rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+          <div className="p-5 border-b border-white/[0.06] flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-white tracking-tight">近期动态提醒</h3>
+              <p className="text-sm text-slate-500 mt-1">周报、比赛、活动和订单的最新变化</p>
+            </div>
+            <button onClick={() => navigate('/notifications')} className="text-sm font-medium text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors group">
+              通知中心 <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+            </button>
+          </div>
+          <div className="p-5">
+            {loading ? (
+              <div className="space-y-3">
+                {[1,2,3].map(i => <div key={i} className="h-[76px] bg-white/[0.03] rounded-xl animate-pulse" />)}
+              </div>
+            ) : notifications.length > 0 ? (
+              <div className="space-y-2">
+                {notifications.slice(0, 5).map(notification => {
+                  const meta = getNotificationMeta(notification);
+                  const time = formatNotificationTime(notification.createdAt || notification.created_at);
+                  const colorMap: Record<string, { bg: string; text: string; border: string }> = {
+                    emerald: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20' },
+                    amber: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/20' },
+                    blue: { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/20' },
+                    violet: { bg: 'bg-violet-500/10', text: 'text-violet-400', border: 'border-violet-500/20' },
+                    slate: { bg: 'bg-slate-500/10', text: 'text-slate-300', border: 'border-slate-500/20' },
+                  };
+                  const color = colorMap[meta.color] || colorMap.slate;
+                  return (
+                    <button
+                      key={notification.id}
+                      onClick={() => handleTabChange(meta.target as typeof activeTab)}
+                      className="w-full group flex items-center justify-between gap-4 p-3 rounded-xl border border-transparent bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/[0.08] transition-all text-left"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center border flex-shrink-0 ${color.bg} ${color.text} ${color.border}`}>
+                          <meta.Icon className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${color.bg} ${color.text} ${color.border}`}>{meta.label}</span>
+                            <span className="text-sm font-semibold text-white truncate">{notification.subTitle || notification.title}</span>
+                          </div>
+                          <p className="text-sm text-slate-400 truncate">{notification.content || notification.title}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0 text-slate-500">
+                        {time && <span className="text-xs">{time}</span>}
+                        <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="h-[120px] flex flex-col items-center justify-center rounded-xl border border-dashed border-white/[0.08] bg-white/[0.015] text-center">
+                <Bell className="w-6 h-6 text-slate-500 mb-2" />
+                <p className="text-sm text-slate-400">暂无新的动态提醒</p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* 最近球员 */}
